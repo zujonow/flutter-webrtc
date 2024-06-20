@@ -153,7 +153,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
                     .setEnableInternalTracer(true)
                     .createInitializationOptions());
 
-    getUserMediaImpl = new GetUserMediaImpl(this, context);
+    getUserMediaImpl = new GetUserMediaImpl(this, context, messenger);
 
     frameCryptor = new FlutterRTCFrameCryptor(this);
 

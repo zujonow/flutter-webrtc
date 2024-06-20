@@ -3,6 +3,31 @@
 #import "FlutterRTCFrameCapturer.h"
 #import "FlutterRTCMediaStream.h"
 #import "FlutterRTCPeerConnection.h"
+#import <Foundation/Foundation.h>
+#import "CustomCapturerDelegate.h"
+
+@implementation CustomCapturerDelegate
+
+- (instancetype)initWithVideoSource:(RTCVideoSource *)videoSource {
+    self = [super init];
+    if (self) {
+        _videoSource = videoSource;
+    }
+    return self;
+}
+
+
+- (void)capturer:(RTCVideoCapturer *)capturer didCaptureVideoFrame:(RTCVideoFrame *)frame {
+    NSLog(@"Frame Received: %@", frame);
+    if (self.videoSource) {
+      NSLog(@"Frame Received: %@", frame);
+        [self.videoSource capturer:capturer didCaptureVideoFrame:frame];
+    } else {
+        NSLog(@"Error: videoSource is nil");
+    }
+}
+
+@end
 
 @implementation RTCMediaStreamTrack (Flutter)
 
@@ -424,7 +449,12 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
     if (self.videoCapturer) {
       [self.videoCapturer stopCapture];
     }
-    self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoSource];
+    //self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoSource];
+    CustomCapturerDelegate *customDelegate = [[CustomCapturerDelegate alloc] initWithVideoSource:videoSource];
+    self.customDelegate = [[CustomCapturerDelegate alloc] initWithVideoSource:videoSource];
+    self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:customDelegate];
+    self.videoCapturer.delegate = self.customDelegate;
+
     AVCaptureDeviceFormat* selectedFormat = [self selectFormatForDevice:videoDevice
                                                             targetWidth:targetWidth
                                                            targetHeight:targetHeight];

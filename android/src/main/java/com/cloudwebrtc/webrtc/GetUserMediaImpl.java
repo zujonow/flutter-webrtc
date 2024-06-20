@@ -69,9 +69,15 @@ import org.webrtc.MediaStreamTrack;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SurfaceTextureHelper;
 import org.webrtc.VideoCapturer;
+import org.webrtc.VideoFrame;
+import org.webrtc.CapturerObserver;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 import org.webrtc.audio.JavaAudioDeviceModule;
+
+import io.flutter.plugin.common.BasicMessageChannel;
+import io.flutter.plugin.common.BinaryMessenger;
+import io.flutter.plugin.common.StringCodec;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -79,6 +85,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.webrtc.VideoFrame.I420Buffer;
+import java.nio.ByteBuffer;
+import com.google.gson.Gson;
+import android.os.Handler;
+import android.os.Looper;
 
 import io.flutter.plugin.common.MethodChannel.Result;
 
@@ -107,6 +118,11 @@ class GetUserMediaImpl {
     private final Map<String, SurfaceTextureHelper> mSurfaceTextureHelpers = new HashMap<>();
     private final StateProvider stateProvider;
     private final Context applicationContext;
+    private final BinaryMessenger messenger;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private BasicMessageChannel<String> messageChannel;
+    private static final String CHANNEL = "video_frame_channel";
+    
 
     static final int minAPILevel = Build.VERSION_CODES.LOLLIPOP;
 
@@ -229,9 +245,11 @@ class GetUserMediaImpl {
         }
     }
 
-    GetUserMediaImpl(StateProvider stateProvider, Context applicationContext) {
+    GetUserMediaImpl(StateProvider stateProvider, Context applicationContext, BinaryMessenger messenger) {
         this.stateProvider = stateProvider;
         this.applicationContext = applicationContext;
+        this.messenger = messenger;
+        messageChannel = new BasicMessageChannel<>(messenger, CHANNEL, StringCodec.INSTANCE);
     }
 
     static private void resultError(String method, String error, Result result) {
@@ -759,8 +777,78 @@ class GetUserMediaImpl {
         String threadName = Thread.currentThread().getName() + "_texture_camera_thread";
         SurfaceTextureHelper surfaceTextureHelper =
                 SurfaceTextureHelper.create(threadName, EglUtils.getRootEglBaseContext());
-        videoCapturer.initialize(
-                surfaceTextureHelper, applicationContext, videoSource.getCapturerObserver());
+
+                CapturerObserver customCapturerObserver = new CapturerObserver() {
+                    @Override
+                    public void onCapturerStarted(boolean success) {
+                        Log.d(TAG, "Capturer started: " + success);
+                        videoSource.getCapturerObserver().onCapturerStarted(success);
+                    }
+        
+                    @Override
+                    public void onCapturerStopped() {
+                        Log.d(TAG, "Capturer stopped");
+                        videoSource.getCapturerObserver().onCapturerStopped();
+                    }
+        
+                    @Override
+                    public void onFrameCaptured(VideoFrame frame) {
+                        videoSource.getCapturerObserver().onFrameCaptured(frame);
+                        I420Buffer i420Buffer = frame.getBuffer().toI420();
+                        int width = i420Buffer.getWidth();
+                        int height = i420Buffer.getHeight();
+        
+                        ByteBuffer yBuffer = i420Buffer.getDataY();
+                        ByteBuffer uBuffer = i420Buffer.getDataU();
+                        ByteBuffer vBuffer = i420Buffer.getDataV();
+        
+                        int ySize = yBuffer.remaining();
+                        int uSize = uBuffer.remaining();
+                        int vSize = vBuffer.remaining();
+        
+                        byte[] frameData = new byte[ySize + uSize + vSize];
+        
+                        yBuffer.get(frameData, 0, ySize);
+                        uBuffer.get(frameData, ySize, uSize);
+                        vBuffer.get(frameData, ySize + uSize, vSize);
+        
+        
+                        Map<String, Object> frameMap = new HashMap<>();
+                        frameMap.put("frameData", frameData);
+                        frameMap.put("width", width);
+                        frameMap.put("height", height);
+                        String frameMapJson = new Gson().toJson(frameMap);
+
+                        //mainHandler.post(() -> messageChannel.send(frameMapJson));
+                        // mainHandler.post(new Runnable() {
+                        //     @Override
+                        //     public void run() {
+                        //         // eventSink.success(frameMap);
+                        //         messageChannel.send(frameMapJson, new BasicMessageChannel.Reply<String>() {
+                        //             @Override
+                        //             public void reply(String response) {
+                        //                 Log.d("MainActivity", "Received response from Dart: " + response);
+                        //                 // Handle the response from Dart as needed
+                        //             }
+                        //         });
+                        //     }
+                        // });
+                        mainHandler.post(() -> {
+                            messageChannel.send(frameMapJson, new BasicMessageChannel.Reply<String>() {
+                                @Override
+                                public void reply(String response) {
+                                    Log.d("MainActivity", "Received response from Dart: " + response);
+                                    // Handle the response from Dart as needed
+                                }
+                            });
+                        });
+                    }
+                };
+        
+                videoCapturer.initialize(surfaceTextureHelper, applicationContext, customCapturerObserver);
+        
+        // videoCapturer.initialize(
+        //         surfaceTextureHelper, applicationContext, videoSource.getCapturerObserver());
 
         VideoCapturerInfo info = new VideoCapturerInfo();
 
