@@ -1,5 +1,6 @@
 package com.cloudwebrtc.webrtc;
-
+import com.cloudwebrtc.webrtc.WebRTCService;
+import com.cloudwebrtc.webrtc.Processor;
 import android.Manifest;
 import android.app.Activity;
 import android.app.Fragment;
@@ -75,9 +76,7 @@ import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 import org.webrtc.audio.JavaAudioDeviceModule;
 
-import io.flutter.plugin.common.BasicMessageChannel;
 import io.flutter.plugin.common.BinaryMessenger;
-import io.flutter.plugin.common.StringCodec;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -87,7 +86,7 @@ import java.util.List;
 import java.util.Map;
 import org.webrtc.VideoFrame.I420Buffer;
 import java.nio.ByteBuffer;
-import com.google.gson.Gson;
+
 import android.os.Handler;
 import android.os.Looper;
 
@@ -120,7 +119,7 @@ class GetUserMediaImpl {
     private final Context applicationContext;
     private final BinaryMessenger messenger;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private BasicMessageChannel<String> messageChannel;
+    //private BasicMessageChannel<String> messageChannel;
     private static final String CHANNEL = "video_frame_channel";
     
 
@@ -249,7 +248,6 @@ class GetUserMediaImpl {
         this.stateProvider = stateProvider;
         this.applicationContext = applicationContext;
         this.messenger = messenger;
-        messageChannel = new BasicMessageChannel<>(messenger, CHANNEL, StringCodec.INSTANCE);
     }
 
     static private void resultError(String method, String error, Result result) {
@@ -779,6 +777,7 @@ class GetUserMediaImpl {
                 SurfaceTextureHelper.create(threadName, EglUtils.getRootEglBaseContext());
 
                 CapturerObserver customCapturerObserver = new CapturerObserver() {
+                    WebRTCService webRTCService = WebRTCService.getInstance();
                     @Override
                     public void onCapturerStarted(boolean success) {
                         Log.d(TAG, "Capturer started: " + success);
@@ -793,55 +792,19 @@ class GetUserMediaImpl {
         
                     @Override
                     public void onFrameCaptured(VideoFrame frame) {
-                        videoSource.getCapturerObserver().onFrameCaptured(frame);
-                        I420Buffer i420Buffer = frame.getBuffer().toI420();
-                        int width = i420Buffer.getWidth();
-                        int height = i420Buffer.getHeight();
-        
-                        ByteBuffer yBuffer = i420Buffer.getDataY();
-                        ByteBuffer uBuffer = i420Buffer.getDataU();
-                        ByteBuffer vBuffer = i420Buffer.getDataV();
-        
-                        int ySize = yBuffer.remaining();
-                        int uSize = uBuffer.remaining();
-                        int vSize = vBuffer.remaining();
-        
-                        byte[] frameData = new byte[ySize + uSize + vSize];
-        
-                        yBuffer.get(frameData, 0, ySize);
-                        uBuffer.get(frameData, ySize, uSize);
-                        vBuffer.get(frameData, ySize + uSize, vSize);
-        
-        
-                        Map<String, Object> frameMap = new HashMap<>();
-                        frameMap.put("frameData", frameData);
-                        frameMap.put("width", width);
-                        frameMap.put("height", height);
-                        String frameMapJson = new Gson().toJson(frameMap);
 
-                        //mainHandler.post(() -> messageChannel.send(frameMapJson));
-                        // mainHandler.post(new Runnable() {
-                        //     @Override
-                        //     public void run() {
-                        //         // eventSink.success(frameMap);
-                        //         messageChannel.send(frameMapJson, new BasicMessageChannel.Reply<String>() {
-                        //             @Override
-                        //             public void reply(String response) {
-                        //                 Log.d("MainActivity", "Received response from Dart: " + response);
-                        //                 // Handle the response from Dart as needed
-                        //             }
-                        //         });
-                        //     }
-                        // });
-                        mainHandler.post(() -> {
-                            messageChannel.send(frameMapJson, new BasicMessageChannel.Reply<String>() {
-                                @Override
-                                public void reply(String response) {
-                                    Log.d("MainActivity", "Received response from Dart: " + response);
-                                    // Handle the response from Dart as needed
-                                }
-                            });
-                        });
+                        if(webRTCService.getProcessor() != null && frame != null){
+                            
+                            VideoFrame processedFrame = webRTCService.getProcessor().applyEffect(frame);
+                            if(processedFrame != null){
+                                videoSource.getCapturerObserver().onFrameCaptured(processedFrame);
+                            }else{
+                                videoSource.getCapturerObserver().onFrameCaptured(frame);
+                            }
+                            
+
+                        }
+                        
                     }
                 };
         

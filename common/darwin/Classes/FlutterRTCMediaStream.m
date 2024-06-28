@@ -5,6 +5,8 @@
 #import "FlutterRTCPeerConnection.h"
 #import <Foundation/Foundation.h>
 #import "CustomCapturerDelegate.h"
+#import "WebRTCService.h"
+#import "Processor.h"
 
 @implementation CustomCapturerDelegate
 
@@ -12,16 +14,28 @@
     self = [super init];
     if (self) {
         _videoSource = videoSource;
+        
     }
     return self;
 }
 
 
 - (void)capturer:(RTCVideoCapturer *)capturer didCaptureVideoFrame:(RTCVideoFrame *)frame {
-    NSLog(@"Frame Received: %@", frame);
-    if (self.videoSource) {
-      NSLog(@"Frame Received: %@", frame);
-        [self.videoSource capturer:capturer didCaptureVideoFrame:frame];
+    WebRTCService *webrtcService = [WebRTCService sharedInstance];
+  //Processor *currentProcessor = [webrtcService getProcessor];
+    if ([webrtcService getProcessor]) {
+        // Process the frame using your Processor instance
+       
+        RTCVideoFrame *processedFrame = [[webrtcService getProcessor] applyEffect:frame];
+        
+        // Pass the processed frame to the video source
+        if (self.videoSource) {
+            [self.videoSource capturer:capturer didCaptureVideoFrame:processedFrame];
+        } 
+    // if (self.videoSource) {
+    
+    //     [self.videoSource capturer:capturer didCaptureVideoFrame:frame];
+    // 
     } else {
         NSLog(@"Error: videoSource is nil");
     }
