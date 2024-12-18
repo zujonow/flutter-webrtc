@@ -1,6 +1,6 @@
 name: flutter_webrtc
 description: Flutter WebRTC plugin for iOS/Android/Destkop/Web, based on GoogleWebRTC.
-version: 0.11.1
+version: 0.12.4
 homepage: https://github.com/cloudwebrtc/flutter-webrtc
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -8,18 +8,18 @@ environment:
 
 dependencies:
   collection: ^1.17.0
-  dart_webrtc: ^1.4.6
+  dart_webrtc: ^1.4.10
   flutter:
     sdk: flutter
   path_provider: ^2.0.2
-  web: ^0.5.1
+  web: ^1.0.0
   webrtc_interface: ^1.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   import_sorter: ^4.6.0
-  lints: ^2.0.0
+  lints: ^4.0.0
   pedantic: ^1.11.1
   test: any
 
@@ -36,4 +36,6 @@ flutter:
       windows:
         pluginClass: FlutterWebRTCPlugin
       linux:
+        pluginClass: FlutterWebRTCPlugin
+      elinux:
         pluginClass: FlutterWebRTCPlugin
