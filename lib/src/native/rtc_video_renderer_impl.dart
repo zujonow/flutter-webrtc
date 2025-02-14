@@ -11,6 +11,7 @@ import 'utils.dart';
 class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
     implements VideoRenderer {
   RTCVideoRenderer() : super(RTCVideoValue.empty);
+  Completer? _initializing;
   int? _textureId;
   bool _disposed = false;
   MediaStream? _srcObject;
@@ -18,14 +19,18 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
 
   @override
   Future<void> initialize() async {
-    if (_textureId != null) {
+    if (_initializing != null) {
+      await _initializing!.future;
+
       return;
     }
+    _initializing = Completer();
     final response = await WebRTC.invokeMethod('createVideoRenderer', {});
     _textureId = response['textureId'];
     _eventSubscription = EventChannel('FlutterWebRTC/Texture$textureId')
         .receiveBroadcastStream()
         .listen(eventListener, onError: errorListener);
+    _initializing!.complete(null);
   }
 
   @override
@@ -33,6 +38,9 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
 
   @override
   int get videoHeight => value.height.toInt();
+
+  @override
+  RTCVideoValue get videoValue => value;
 
   @override
   int? get textureId => _textureId;
