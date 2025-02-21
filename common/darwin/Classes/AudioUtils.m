@@ -14,7 +14,8 @@
       session.category != AVAudioSessionCategoryMultiRoute) {
     config.category = AVAudioSessionCategoryPlayAndRecord;
     config.categoryOptions =
-        AVAudioSessionCategoryOptionAllowBluetooth | AVAudioSessionCategoryOptionAllowBluetoothA2DP;
+        AVAudioSessionCategoryOptionAllowBluetooth | AVAudioSessionCategoryOptionAllowBluetoothA2DP |
+         AVAudioSessionCategoryOptionAllowAirPlay;
 
     [session lockForConfiguration];
     NSError* error = nil;
