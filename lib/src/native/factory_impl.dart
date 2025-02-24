@@ -17,13 +17,14 @@ class RTCFactoryNative extends RTCFactory {
   RTCFactoryNative._internal();
 
   static final RTCFactory instance = RTCFactoryNative._internal();
-
   @override
   Future<MediaStream> createLocalMediaStream(String label) async {
     final response = await WebRTC.invokeMethod('createLocalMediaStream');
+
     if (response == null) {
       throw Exception('createLocalMediaStream return null, something wrong');
     }
+
     return MediaStreamNative(response['streamId'], label);
   }
 
@@ -47,6 +48,7 @@ class RTCFactoryNative extends RTCFactory {
     );
 
     String peerConnectionId = response['peerConnectionId'];
+
     return RTCPeerConnectionNative(peerConnectionId, configuration);
   }
 

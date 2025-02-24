@@ -15,6 +15,11 @@ import live.videosdk.webrtc.audio.AudioSwitchManager;
 import live.videosdk.webrtc.utils.AnyThreadSink;
 import live.videosdk.webrtc.utils.ConstraintsMap;
 
+import live.videosdk.webrtc.audio.AudioProcessingController;
+
+import org.webrtc.ExternalAudioProcessingFactory;
+import org.webrtc.MediaStreamTrack;
+
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
@@ -22,7 +27,7 @@ import io.flutter.embedding.engine.plugins.lifecycle.HiddenLifecycleReference;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodChannel;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
+
 import io.flutter.view.TextureRegistry;
 
 /**
@@ -41,27 +46,28 @@ public class FlutterWebRTCPlugin implements FlutterPlugin, ActivityAware, EventC
     public EventChannel.EventSink eventSink;
 
     public FlutterWebRTCPlugin() {
+        sharedSingleton = this;
     }
 
-    /**
-     * Plugin registration.
-     */
-    public static void registerWith(Registrar registrar) {
-        final FlutterWebRTCPlugin plugin = new FlutterWebRTCPlugin();
+    public static FlutterWebRTCPlugin sharedSingleton;
 
-        plugin.startListening(registrar.context(), registrar.messenger(), registrar.textures());
-
-        if (registrar.activeContext() instanceof Activity) {
-            plugin.methodCallHandler.setActivity((Activity) registrar.activeContext());
-        }
-        application = ((Application) registrar.context().getApplicationContext());
-        application.registerActivityLifecycleCallbacks(plugin.observer);
-
-        registrar.addViewDestroyListener(view -> {
-            plugin.stopListening();
-            return false;
-        });
+    public AudioProcessingController getAudioProcessingController() {
+        return methodCallHandler.audioProcessingController;
     }
+
+    public MediaStreamTrack getTrackForId(String trackId, String peerConnectionId) {
+        return methodCallHandler.getTrackForId(trackId, peerConnectionId);
+    }
+
+    public LocalTrack getLocalTrack(String trackId) {
+        return methodCallHandler.getLocalTrack(trackId);
+    }
+
+    public MediaStreamTrack getRemoteTrack(String trackId) {
+        return methodCallHandler.getRemoteTrack(trackId);
+    }
+
+
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
