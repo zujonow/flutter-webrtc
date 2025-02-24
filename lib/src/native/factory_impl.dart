@@ -24,7 +24,7 @@ class RTCFactoryNative extends RTCFactory {
     if (response == null) {
       throw Exception('createLocalMediaStream return null, something wrong');
     }
-    print("No null value moving forward");
+
     return MediaStreamNative(response['streamId'], label);
   }
 
@@ -32,7 +32,6 @@ class RTCFactoryNative extends RTCFactory {
   Future<RTCPeerConnection> createPeerConnection(
       Map<String, dynamic> configuration,
       [Map<String, dynamic> constraints = const {}]) async {
-    print("factory_impl.dart called");
     var defaultConstraints = <String, dynamic>{
       'mandatory': {},
       'optional': [
@@ -47,10 +46,8 @@ class RTCFactoryNative extends RTCFactory {
         'constraints': constraints.isEmpty ? defaultConstraints : constraints
       },
     );
-    print("response fetched");
 
     String peerConnectionId = response['peerConnectionId'];
-    print("PeerConection ID : ${peerConnectionId}");
 
     return RTCPeerConnectionNative(peerConnectionId, configuration);
   }
@@ -98,9 +95,6 @@ class RTCFactoryNative extends RTCFactory {
 Future<RTCPeerConnection> createPeerConnection(
     Map<String, dynamic> configuration,
     [Map<String, dynamic> constraints = const {}]) async {
-  print("createPeerConnection ${configuration.entries}");
-  print("createPeerConnection ${constraints.entries}");
-
   return RTCFactoryNative.instance
       .createPeerConnection(configuration, constraints);
 }
