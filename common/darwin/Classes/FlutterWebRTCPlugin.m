@@ -1536,27 +1536,45 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
   }
   return stream;
 }
+
 - (RTCMediaStreamTrack* _Nullable)remoteTrackForId:(NSString* _Nonnull)trackId {
     RTCMediaStreamTrack *mediaStreamTrack = nil;
-      for (NSString* currentId in _peerConnections.allKeys) {
+    for (NSString* currentId in _peerConnections.allKeys) {
         RTCPeerConnection* peerConnection = _peerConnections[currentId];
-        mediaStreamTrack = peerConnection.remoteTracks[trackId];
-        if (!mediaStreamTrack) {
-          for (RTCRtpTransceiver* transceiver in peerConnection.transceivers) {
-            if (transceiver.receiver.track != nil &&
-                [transceiver.receiver.track.trackId isEqual:trackId]) {
-                mediaStreamTrack = transceiver.receiver.track;
-              break;
+        RTCConfiguration *config = peerConnection.configuration;
+        RTCSdpSemantics sdpSemantics = config.sdpSemantics;
+        BOOL isUnifiedPlan = (sdpSemantics == RTCSdpSemanticsUnifiedPlan);
+        if (isUnifiedPlan) {
+            continue;  
+        }
+        for (id streamObj in peerConnection.remoteStreams) {
+            if (![streamObj isKindOfClass:[RTCMediaStream class]]) {
+                continue;
             }
-          }
+            RTCMediaStream *stream = (RTCMediaStream *)streamObj;
+            for (RTCVideoTrack *videoTrack in stream.videoTracks) {
+                if ([videoTrack.trackId isEqualToString:trackId]) {
+                    mediaStreamTrack = videoTrack;
+                    break;
+                }
+            }
+            if (mediaStreamTrack) break;
+        }
+        if (!mediaStreamTrack) {
+            if ([peerConnection respondsToSelector:@selector(remoteTracks)]) {
+                NSDictionary<NSString *, RTCMediaStreamTrack *> *remoteTracks = [peerConnection performSelector:@selector(remoteTracks)];
+                mediaStreamTrack = remoteTracks[trackId];
+            } else {
+            }
         }
         if (mediaStreamTrack) {
-          break;
+            break; 
         }
-      }
-
+    }
     return mediaStreamTrack;
 }
+
+
 
 - (RTCMediaStreamTrack*)trackForId:(NSString*)trackId peerConnectionId:(NSString*)peerConnectionId {
    id<LocalTrack> track = _localTracks[trackId];
