@@ -3,7 +3,7 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - videosdk_webrtc (0.0.5):
+  - videosdk_webrtc (0.0.6):
     - FlutterMacOS
     - WebRTC-SDK (= 125.6422.06)
   - WebRTC-SDK (125.6422.06)
