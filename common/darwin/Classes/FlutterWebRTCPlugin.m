@@ -1539,40 +1539,54 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
 - (RTCMediaStreamTrack* _Nullable)remoteTrackForId:(NSString* _Nonnull)trackId {
     RTCMediaStreamTrack *mediaStreamTrack = nil;
-    for (NSString* currentId in _peerConnections.allKeys) {
-        RTCPeerConnection* peerConnection = _peerConnections[currentId];
+
+    for (NSString *currentId in _peerConnections.allKeys) {
+        RTCPeerConnection *peerConnection = _peerConnections[currentId];
+
+        // Check the SDP semantics to decide whether to use Unified Plan or Plan B
         RTCConfiguration *config = peerConnection.configuration;
         RTCSdpSemantics sdpSemantics = config.sdpSemantics;
         BOOL isUnifiedPlan = (sdpSemantics == RTCSdpSemanticsUnifiedPlan);
+
         if (isUnifiedPlan) {
-            continue;  
-        }
-        for (id streamObj in peerConnection.remoteStreams) {
-            if (![streamObj isKindOfClass:[RTCMediaStream class]]) {
-                continue;
-            }
-            RTCMediaStream *stream = (RTCMediaStream *)streamObj;
-            for (RTCVideoTrack *videoTrack in stream.videoTracks) {
-                if ([videoTrack.trackId isEqualToString:trackId]) {
-                    mediaStreamTrack = videoTrack;
+            for (RTCRtpReceiver *receiver in peerConnection.receivers) {
+                RTCMediaStreamTrack *track = receiver.track;
+                if (track && [track.trackId isEqualToString:trackId]) {
+                    mediaStreamTrack = track;
                     break;
                 }
             }
-            if (mediaStreamTrack) break;
-        }
-        if (!mediaStreamTrack) {
-            if ([peerConnection respondsToSelector:@selector(remoteTracks)]) {
+        } else {
+            for (id streamObj in peerConnection.remoteStreams) {
+                if (![streamObj isKindOfClass:[RTCMediaStream class]]) {
+                    continue;
+                }
+
+                RTCMediaStream *stream = (RTCMediaStream *)streamObj;
+
+                for (RTCVideoTrack *videoTrack in stream.videoTracks) {
+                    if ([videoTrack.trackId isEqualToString:trackId]) {
+                        mediaStreamTrack = videoTrack;
+                        break;
+                    }
+                }
+
+                if (mediaStreamTrack) break;
+            }
+            if (!mediaStreamTrack && [peerConnection respondsToSelector:@selector(remoteTracks)]) {
                 NSDictionary<NSString *, RTCMediaStreamTrack *> *remoteTracks = [peerConnection performSelector:@selector(remoteTracks)];
                 mediaStreamTrack = remoteTracks[trackId];
-            } else {
             }
         }
+
         if (mediaStreamTrack) {
-            break; 
+            break;
         }
     }
+
     return mediaStreamTrack;
 }
+
 
 
 
