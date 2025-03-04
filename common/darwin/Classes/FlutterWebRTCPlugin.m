@@ -1542,8 +1542,6 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
     for (NSString *currentId in _peerConnections.allKeys) {
         RTCPeerConnection *peerConnection = _peerConnections[currentId];
-
-        // Check the SDP semantics to decide whether to use Unified Plan or Plan B
         RTCConfiguration *config = peerConnection.configuration;
         RTCSdpSemantics sdpSemantics = config.sdpSemantics;
         BOOL isUnifiedPlan = (sdpSemantics == RTCSdpSemanticsUnifiedPlan);
@@ -1561,16 +1559,13 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
                 if (![streamObj isKindOfClass:[RTCMediaStream class]]) {
                     continue;
                 }
-
                 RTCMediaStream *stream = (RTCMediaStream *)streamObj;
-
                 for (RTCVideoTrack *videoTrack in stream.videoTracks) {
                     if ([videoTrack.trackId isEqualToString:trackId]) {
                         mediaStreamTrack = videoTrack;
                         break;
                     }
                 }
-
                 if (mediaStreamTrack) break;
             }
             if (!mediaStreamTrack && [peerConnection respondsToSelector:@selector(remoteTracks)]) {
@@ -1578,12 +1573,10 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
                 mediaStreamTrack = remoteTracks[trackId];
             }
         }
-
         if (mediaStreamTrack) {
             break;
         }
     }
-
     return mediaStreamTrack;
 }
 
