@@ -54,7 +54,8 @@ void FlutterDataChannel::CreateDataChannel(
       "FlutterWebRTC/dataChannelEvent" + peerConnectionId + uuid;
 
   std::unique_ptr<FlutterRTCDataChannelObserver> observer(
-    new FlutterRTCDataChannelObserver(data_channel, base_->messenger_, base_->task_runner_,event_channel));
+      new FlutterRTCDataChannelObserver(data_channel, base_->messenger_, base_->task_runner_,
+                                        event_channel));
 
   base_->lock();
   base_->data_channel_observers_[uuid] = std::move(observer);
@@ -87,10 +88,10 @@ void FlutterDataChannel::DataChannelSend(
 }
 
 void FlutterDataChannel::DataChannelGetBufferedAmount(RTCDataChannel* data_channel,
-  std::unique_ptr<MethodResultProxy> result) {
-EncodableMap params;
-params[EncodableValue("bufferedAmount")] = EncodableValue((int64_t)data_channel->buffered_amount());
-result->Success(EncodableValue(params));
+                             std::unique_ptr<MethodResultProxy> result) {
+  EncodableMap params;
+  params[EncodableValue("bufferedAmount")] = EncodableValue((int64_t)data_channel->buffered_amount());
+  result->Success(EncodableValue(params));
 }
 
 void FlutterDataChannel::DataChannelClose(
@@ -154,4 +155,4 @@ void FlutterRTCDataChannelObserver::OnMessage(const char* buffer,
   auto data = EncodableValue(params);
   event_channel_->Success(data);
 }
-}  // namespace videosdk_webrtc_plugin
+}  // namespace flutter_webrtc_plugin
