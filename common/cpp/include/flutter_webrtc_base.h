@@ -43,7 +43,7 @@ class FlutterWebRTCBase {
   enum ParseConstraintType { kMandatory, kOptional };
 
  public:
-  FlutterWebRTCBase(BinaryMessenger* messenger, TextureRegistrar* textures);
+ FlutterWebRTCBase(BinaryMessenger* messenger, TextureRegistrar* textures, TaskRunner* task_runner);
   ~FlutterWebRTCBase();
 
   std::string GenerateUUID();

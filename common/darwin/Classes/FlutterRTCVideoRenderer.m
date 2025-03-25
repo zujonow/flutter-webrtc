@@ -25,6 +25,7 @@
 @synthesize textureId = _textureId;
 @synthesize registry = _registry;
 @synthesize eventSink = _eventSink;
+@synthesize videoTrack = _videoTrack;
 
 - (instancetype)initWithTextureRegistry:(id<FlutterTextureRegistry>)registry
                               messenger:(NSObject<FlutterBinaryMessenger>*)messenger {
@@ -77,6 +78,9 @@
   RTCVideoTrack* oldValue = self.videoTrack;
 
   if (oldValue != videoTrack) {
+     os_unfair_lock_lock(&_lock);
+    _videoTrack = videoTrack;
+    os_unfair_lock_unlock(&_lock);
     _isFirstFrameRendered = false;
     if (oldValue) {
       [oldValue removeRenderer:self];
@@ -193,7 +197,19 @@
 
   os_unfair_lock_lock(&_lock);
   if(!_frameAvailable && _pixelBufferRef) {
+      os_unfair_lock_lock(&_lock);
+  if(_videoTrack == nil) {
+    os_unfair_lock_unlock(&_lock);
+    return;
+  }
+  if(!_frameAvailable && _pixelBufferRef) {
     [self copyI420ToCVPixelBuffer:_pixelBufferRef withFrame:frame];
+    if(_textureId != -1) {
+      [_registry textureFrameAvailable:_textureId];
+    }
+    _frameAvailable = true;
+  }
+  os_unfair_lock_unlock(&_lock);
     if(_textureId != -1) {
       [_registry textureFrameAvailable:_textureId];
     }

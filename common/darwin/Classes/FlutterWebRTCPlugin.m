@@ -18,6 +18,7 @@
 #import "LocalTrack.h"
 #import "LocalAudioTrack.h"
 #import "LocalVideoTrack.h"
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wprotocol"
 
@@ -558,7 +559,14 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
     [self dataChannelSend:peerConnectionId dataChannelId:dataChannelId data:data type:type];
     result(nil);
-  } else if ([@"dataChannelClose" isEqualToString:call.method]) {
+    }  else if ([@"dataChannelGetBufferedAmount" isEqualToString:call.method]) {
+    NSDictionary* argsMap = call.arguments;
+    NSString* peerConnectionId = argsMap[@"peerConnectionId"];
+    NSString* dataChannelId = argsMap[@"dataChannelId"];
+
+    [self dataChannelGetBufferedAmount:peerConnectionId dataChannelId:dataChannelId result:result];
+  } 
+  else if ([@"dataChannelClose" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSString* peerConnectionId = argsMap[@"peerConnectionId"];
     NSString* dataChannelId = argsMap[@"dataChannelId"];
@@ -748,7 +756,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
       [self.renders removeObjectForKey:textureId];
     }
     result(nil);
-  } else if ([@"videoRendererSetSrcObject" isEqualToString:call.method]) {
+   } else if ([@"videoRendererSetSrcObject" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSNumber* textureId = argsMap[@"textureId"];
     FlutterRTCVideoRenderer* render = self.renders[textureId];
@@ -783,7 +791,55 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     }
     [self rendererSetSrcObject:render stream:videoTrack];
     result(nil);
-  } else if ([@"mediaStreamTrackHasTorch" isEqualToString:call.method]) {
+  }
+#if TARGET_OS_IPHONE
+  else if ([@"videoPlatformViewRendererSetSrcObject" isEqualToString:call.method]) {
+      NSDictionary* argsMap = call.arguments;
+      NSNumber* viewId = argsMap[@"viewId"];
+      FlutterRTCVideoPlatformViewController* render = _platformViewFactory.renders[viewId];
+      NSString* streamId = argsMap[@"streamId"];
+      NSString* ownerTag = argsMap[@"ownerTag"];
+      NSString* trackId = argsMap[@"trackId"];
+      if (!render) {
+        result([FlutterError errorWithCode:@"videoRendererSetSrcObject: render is nil"
+                                   message:nil
+                                   details:nil]);
+        return;
+      }
+      RTCMediaStream* stream = nil;
+      RTCVideoTrack* videoTrack = nil;
+      if ([ownerTag isEqualToString:@"local"]) {
+        stream = _localStreams[streamId];
+      }
+      if (!stream) {
+        stream = [self streamForId:streamId peerConnectionId:ownerTag];
+      }
+      if (stream) {
+        NSArray* videoTracks = stream ? stream.videoTracks : nil;
+        videoTrack = videoTracks && videoTracks.count ? videoTracks[0] : nil;
+        for (RTCVideoTrack* track in videoTracks) {
+          if ([track.trackId isEqualToString:trackId]) {
+            videoTrack = track;
+          }
+        }
+        if (!videoTrack) {
+          NSLog(@"Not found video track for RTCMediaStream: %@", streamId);
+        }
+      }
+      render.videoTrack = videoTrack;
+      result(nil);
+  } else if ([@"videoPlatformViewRendererDispose" isEqualToString:call.method]) {
+      NSDictionary* argsMap = call.arguments;
+      NSNumber* viewId = argsMap[@"viewId"];
+      FlutterRTCVideoPlatformViewController* render = _platformViewFactory.renders[viewId];
+      if(render != nil) {
+        render.videoTrack = nil;
+        [_platformViewFactory.renders removeObjectForKey:viewId];
+      }
+      result(nil);
+    }
+#endif
+     else if ([@"mediaStreamTrackHasTorch" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSString* trackId = argsMap[@"trackId"];
     id<LocalTrack> track = self.localTracks[trackId];

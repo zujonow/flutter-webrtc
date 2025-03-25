@@ -1,14 +1,14 @@
 package live.videosdk.webrtc;
 
 import android.graphics.SurfaceTexture;
-
+import android.view.Surface;
 import org.webrtc.EglBase;
 import org.webrtc.EglRenderer;
 import org.webrtc.GlRectDrawer;
 import org.webrtc.RendererCommon;
 import org.webrtc.ThreadUtils;
 import org.webrtc.VideoFrame;
-
+import io.flutter.view.TextureRegistry;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -95,19 +95,37 @@ public class SurfaceTextureRenderer extends EglRenderer {
   // VideoSink interface.
   @Override
   public void onFrame(VideoFrame frame) {
-    if(!isFirstFrameRendered) {
-      texture.setDefaultBufferSize(frame.getRotatedWidth(), frame.getRotatedHeight());
-      createEglSurface(texture);
+    if(surface == null) {
+      producer.setSize(frame.getRotatedWidth(),frame.getRotatedHeight());
+      surface = producer.getSurface();
+      createEglSurface(surface);
     }
+ 
     updateFrameDimensionsAndReportEvents(frame);
     super.onFrame(frame);
   }
 
-  private SurfaceTexture texture;
+  private Surface surface = null;
+  private TextureRegistry.SurfaceProducer producer;
 
-  public void surfaceCreated(final SurfaceTexture texture) {
+  public void surfaceCreated(final TextureRegistry.SurfaceProducer producer) {
+
+ 
     ThreadUtils.checkIsOnMainThread();
-    this.texture = texture;
+    this.producer = producer;
+    // this.producer.setCallback(
+    //         new TextureRegistry.SurfaceProducer.Callback() {
+    //           @Override
+    //           public void onSurfaceAvailable() {
+    //             // Do surface initialization here, and draw the current frame.
+    //           }
+
+    //           @Override
+    //           public void onSurfaceDestroyed() {
+    //             surfaceDestroyed();
+    //           }
+    //         }
+    // );
    
   }
 
@@ -116,6 +134,7 @@ public class SurfaceTextureRenderer extends EglRenderer {
     final CountDownLatch completionLatch = new CountDownLatch(1);
     releaseEglSurface(completionLatch::countDown);
     ThreadUtils.awaitUninterruptibly(completionLatch);
+    surface = null;
   }
 
   // Update frame dimensions and report any changes to |rendererEvents|.
@@ -139,7 +158,7 @@ public class SurfaceTextureRenderer extends EglRenderer {
         }
         rotatedFrameWidth = frame.getRotatedWidth();
         rotatedFrameHeight = frame.getRotatedHeight();
-        texture.setDefaultBufferSize(rotatedFrameWidth, rotatedFrameHeight);
+        producer.setSize(rotatedFrameWidth, rotatedFrameHeight);
         frameRotation = frame.getRotation();
       }
     }

@@ -102,7 +102,12 @@ class RTCDataChannel : public RefCountInterface {
    * Returns the ID of the data channel.
    */
   virtual int id() const = 0;
-
+  /**
+   * Returns the amount of data buffered in the data channel.
+   *
+   * @return uint64_t
+   */
+   virtual uint64_t buffered_amount() const = 0;
   /**
    * Returns the state of the data channel.
    */

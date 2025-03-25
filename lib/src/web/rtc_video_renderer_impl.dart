@@ -243,9 +243,8 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
   Future<bool> audioOutput(String deviceId) async {
     try {
       final element = _audioElement;
-      if (null != element && jsutil.hasProperty(element, 'setSinkId')) {
-        await jsutil.promiseToFuture<void>(
-            jsutil.callMethod(element, 'setSinkId', [deviceId]));
+      if (null != element) {
+        await element.setSinkId(deviceId).toDart;
 
         return true;
       }

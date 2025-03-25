@@ -164,7 +164,8 @@ void FlutterFrameCryptor::FrameCryptorFactoryCreateFrameCryptor(
             keyProvider);
     std::string event_channel = "FlutterWebRTC/frameCryptorEvent" + uuid;
 
-    scoped_refptr<FlutterFrameCryptorObserver> observer(new RefCountedObject<FlutterFrameCryptorObserver>(base_->messenger_, event_channel));
+   
+    scoped_refptr<FlutterFrameCryptorObserver> observer(new RefCountedObject<FlutterFrameCryptorObserver>(base_->messenger_, base_->task_runner_, event_channel));
 
     frameCryptor->RegisterRTCFrameCryptorObserver(observer);
 
@@ -190,7 +191,7 @@ void FlutterFrameCryptor::FrameCryptorFactoryCreateFrameCryptor(
 
     std::string event_channel = "FlutterWebRTC/frameCryptorEvent" + uuid;
 
-    scoped_refptr<FlutterFrameCryptorObserver> observer(new RefCountedObject<FlutterFrameCryptorObserver>(base_->messenger_, event_channel));
+    scoped_refptr<FlutterFrameCryptorObserver> observer(new RefCountedObject<FlutterFrameCryptorObserver>(base_->messenger_, base_->task_runner_, event_channel));
 
     frameCryptor->RegisterRTCFrameCryptorObserver(observer.get());
 
