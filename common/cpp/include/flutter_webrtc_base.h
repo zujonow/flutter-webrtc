@@ -123,6 +123,7 @@ class FlutterWebRTCBase {
  protected:
   BinaryMessenger* messenger_;
   TextureRegistrar* textures_;
+  TaskRunner *task_runner_;
   std::unique_ptr<EventChannelProxy> event_channel_;
 };
 

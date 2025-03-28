@@ -20,7 +20,6 @@ import io.flutter.view.TextureRegistry;
 public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
 
     private static final String TAG = FlutterWebRTCPlugin.TAG;
-
     private final TextureRegistry.SurfaceProducer producer;
     private int id = -1;
     private MediaStream mediaStream;
@@ -28,7 +27,7 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
     private String ownerTag;
 
     public void Dispose() {
-        //destroy
+        // destroy
         if (surfaceTextureRenderer != null) {
             surfaceTextureRenderer.release();
         }
@@ -93,7 +92,8 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
     private final SurfaceTextureRenderer surfaceTextureRenderer;
 
     /**
-     * The {@code VideoTrack}, if any, rendered by this {@code FlutterRTCVideoRenderer}.
+     * The {@code VideoTrack}, if any, rendered by this
+     * {@code FlutterRTCVideoRenderer}.
      */
     private VideoTrack videoTrack;
 
@@ -106,11 +106,10 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
         surfaceTextureRenderer.init(EglUtils.getRootEglBaseContext(), rendererEvents);
         surfaceTextureRenderer.surfaceCreated(producer);
 
-
         this.eventSink = null;
         this.producer = producer;
         this.ownerTag = null;
-        }
+    }
 
     public void setEventChannel(EventChannel eventChannel) {
         this.eventChannel = eventChannel;
@@ -139,7 +138,8 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
     }
 
     /**
-     * Sets the {@code MediaStream} to be rendered by this {@code FlutterRTCVideoRenderer}.
+     * Sets the {@code MediaStream} to be rendered by this
+     * {@code FlutterRTCVideoRenderer}.
      * The implementation renders the first {@link VideoTrack}, if any, of the
      * specified {@code mediaStream}.
      *
@@ -160,17 +160,19 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
 
         setVideoTrack(videoTrack);
     }
-   /**
-     * Sets the {@code MediaStream} to be rendered by this {@code FlutterRTCVideoRenderer}.
+
+    /**
+     * Sets the {@code MediaStream} to be rendered by this
+     * {@code FlutterRTCVideoRenderer}.
      * The implementation renders the first {@link VideoTrack}, if any, of the
      * specified trackId
      *
      * @param mediaStream The {@code MediaStream} to be rendered by this
      *                    {@code FlutterRTCVideoRenderer} or {@code null}.
-     * @param trackId The {@code trackId} to be rendered by this
+     * @param trackId     The {@code trackId} to be rendered by this
      *                    {@code FlutterRTCVideoRenderer} or {@code null}.
      */
-    public void setStream(MediaStream mediaStream,String trackId, String ownerTag) {
+    public void setStream(MediaStream mediaStream, String trackId, String ownerTag) {
         VideoTrack videoTrack;
         this.mediaStream = mediaStream;
         this.ownerTag = ownerTag;
@@ -181,8 +183,8 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
 
             videoTrack = videoTracks.isEmpty() ? null : videoTracks.get(0);
 
-            for (VideoTrack track : videoTracks){
-                if (track.id().equals(trackId)){
+            for (VideoTrack track : videoTracks) {
+                if (track.id().equals(trackId)) {
                     videoTrack = track;
                 }
             }
@@ -192,7 +194,8 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
     }
 
     /**
-     * Sets the {@code VideoTrack} to be rendered by this {@code FlutterRTCVideoRenderer}.
+     * Sets the {@code VideoTrack} to be rendered by this
+     * {@code FlutterRTCVideoRenderer}.
      *
      * @param videoTrack The {@code VideoTrack} to be rendered by this
      *                   {@code FlutterRTCVideoRenderer} or {@code null}.
@@ -252,7 +255,7 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
     }
 
     public boolean checkVideoTrack(String id, String ownerTag) {
-        if (null == id || null == videoTrack  || ownerTag == null || !ownerTag.equals(this.ownerTag)) {
+        if (null == id || null == videoTrack || ownerTag == null || !ownerTag.equals(this.ownerTag)) {
             return false;
         }
         return id.equals(videoTrack.id());

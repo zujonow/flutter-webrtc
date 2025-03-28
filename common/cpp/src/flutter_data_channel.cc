@@ -155,4 +155,4 @@ void FlutterRTCDataChannelObserver::OnMessage(const char* buffer,
   auto data = EncodableValue(params);
   event_channel_->Success(data);
 }
-}  // namespace flutter_webrtc_plugin
+}  // namespace videosdk_webrtc_plugin

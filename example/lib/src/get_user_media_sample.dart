@@ -1,10 +1,12 @@
 import 'dart:core';
 import 'dart:io';
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:videosdk_webrtc/flutter_webrtc.dart';
+
 import 'package:path_provider/path_provider.dart';
+import 'package:videosdk_webrtc/flutter_webrtc.dart';
 
 /*
  * getUserMedia sample
@@ -104,6 +106,7 @@ class _GetUserMediaSampleState extends State<GetUserMediaSample> {
       print('Recording is not available on iOS');
       return;
     }
+
     // TODO(rostopira): request write storage permission
     final storagePath = await getExternalStorageDirectory();
     if (storagePath == null) throw Exception('Can\'t find storagePath');

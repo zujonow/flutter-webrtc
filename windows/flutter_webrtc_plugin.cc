@@ -70,6 +70,6 @@ class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
 void FlutterWebRTCPluginRegisterWithRegistrar(
     FlutterDesktopPluginRegistrarRef registrar) {
     static auto* plugin_registrar = new flutter::PluginRegistrar(registrar);
-    flutter_webrtc_plugin::FlutterWebRTCPluginImpl::RegisterWithRegistrar(
+    videosdk_webrtc_plugin::FlutterWebRTCPluginImpl::RegisterWithRegistrar(
         plugin_registrar);
 }

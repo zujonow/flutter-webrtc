@@ -85,21 +85,21 @@
  * {@link https://www.w3.org/TR/mediacapture-streams/#navigatorusermediaerrorcallback}
  */
 typedef void (^NavigatorUserMediaErrorCallback)(NSString* errorType, NSString* errorMessage);
-/**
- * {@link https://www.w3.org/TR/mediacapture-streams/#navigatorusermediasuccesscallback}
- */
-typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
-- (NSDictionary*)defaultVideoConstraints {
-    return @{@"minWidth" : @"1280", @"minHeight" : @"720", @"minFrameRate" : @"30"};
-}
-- (NSDictionary*)defaultAudioConstraints {
-    return @{};
-}
+
 
 /**
  * {@link https://www.w3.org/TR/mediacapture-streams/#navigatorusermediasuccesscallback}
  */
 typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
+
+- (NSDictionary*)defaultVideoConstraints {
+    return @{@"minWidth" : @"1280", @"minHeight" : @"720", @"minFrameRate" : @"30"};
+}
+
+- (NSDictionary*)defaultAudioConstraints {
+    return @{};
+}
+
 
 - (RTCMediaConstraints*)defaultMediaStreamConstraints {
   RTCMediaConstraints* constraints =
@@ -218,7 +218,7 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
 
   [mediaStream addAudioTrack:audioTrack];
 
-[self.localTracks setObject: audioTrack forKey:trackId];
+ [self.localTracks setObject:localAudioTrack forKey:trackId];
 
   [self ensureAudioSession];
 
@@ -538,7 +538,7 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     self.videoCapturer.delegate = self.customDelegate;
   
     VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc] initWithRTCVideoSource:videoSource];
-       // self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
+       self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
     AVCaptureDeviceFormat* selectedFormat = [self selectFormatForDevice:videoDevice
                                                             targetWidth:targetWidth
                                                            targetHeight:targetHeight];

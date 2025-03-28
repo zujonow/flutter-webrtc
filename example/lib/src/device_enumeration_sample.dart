@@ -1,10 +1,9 @@
 import 'dart:core';
 import 'package:collection/collection.dart';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:videosdk_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:videosdk_webrtc/flutter_webrtc.dart';
 
 class VideoSize {
   VideoSize(this.width, this.height);
@@ -113,15 +112,19 @@ class _DeviceEnumerationSampleState extends State<DeviceEnumerationSample> {
 
     pc1!.onIceCandidate = (candidate) => pc2!.addCandidate(candidate);
     pc2!.onIceCandidate = (candidate) => pc1!.addCandidate(candidate);
+    print("start 3");
   }
 
   Future<void> _negotiate() async {
+    print("start 6");
     var offer = await pc1?.createOffer();
+    print("start 7");
     await pc1?.setLocalDescription(offer!);
     await pc2?.setRemoteDescription(offer!);
     var answer = await pc2?.createAnswer();
     await pc2?.setLocalDescription(answer!);
     await pc1?.setRemoteDescription(answer!);
+    print("start 7");
   }
 
   Future<void> stopPCs() async {
@@ -273,16 +276,24 @@ class _DeviceEnumerationSampleState extends State<DeviceEnumerationSample> {
           'frameRate': _selectedVideoFPS,
         },
       });
+      print("start 1");
       _localRenderer.srcObject = _localStream;
       _inCalling = true;
+      print("start 2");
 
       await initPCs();
 
+      print("start 4");
+
       _localStream?.getTracks().forEach((track) async {
+        print("start 8 ${track.kind}");
         var rtpSender = await pc1?.addTrack(track, _localStream!);
+
         print('track.settings ' + track.getSettings().toString());
         senders.add(rtpSender!);
       });
+
+      print("start 5");
 
       await _negotiate();
       setState(() {});

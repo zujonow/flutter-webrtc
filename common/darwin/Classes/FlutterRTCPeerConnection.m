@@ -408,6 +408,8 @@
   NSString* streamId = stream.streamId;
   peerConnection.remoteStreams[streamId] = stream;
 
+  NSLog(@"didAddTrack %@ %@", streamId, track.trackId);
+
   FlutterEventSink eventSink = peerConnection.eventSink;
   if (eventSink) {
     postEvent(eventSink, @{
