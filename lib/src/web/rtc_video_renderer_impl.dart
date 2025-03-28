@@ -304,7 +304,7 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
 
       _subscriptions.add(
         element.onEnded.listen((dynamic _) {
-          // print('RTCVideoRenderer: videoElement.onEnded');
+          print('RTCVideoRenderer: videoElement.onEnded');
         }),
       );
 
