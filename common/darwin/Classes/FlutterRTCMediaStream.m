@@ -85,21 +85,21 @@
  * {@link https://www.w3.org/TR/mediacapture-streams/#navigatorusermediaerrorcallback}
  */
 typedef void (^NavigatorUserMediaErrorCallback)(NSString* errorType, NSString* errorMessage);
-/**
- * {@link https://www.w3.org/TR/mediacapture-streams/#navigatorusermediasuccesscallback}
- */
-typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
-- (NSDictionary*)defaultVideoConstraints {
-    return @{@"minWidth" : @"1280", @"minHeight" : @"720", @"minFrameRate" : @"30"};
-}
-- (NSDictionary*)defaultAudioConstraints {
-    return @{};
-}
+
 
 /**
  * {@link https://www.w3.org/TR/mediacapture-streams/#navigatorusermediasuccesscallback}
  */
 typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
+
+- (NSDictionary*)defaultVideoConstraints {
+    return @{@"minWidth" : @"1280", @"minHeight" : @"720", @"minFrameRate" : @"30"};
+}
+
+- (NSDictionary*)defaultAudioConstraints {
+    return @{};
+}
+
 
 - (RTCMediaConstraints*)defaultMediaStreamConstraints {
   RTCMediaConstraints* constraints =
@@ -175,10 +175,10 @@ RTCMediaConstraints *rtcConstraints;
     }
 rtcConstraints = [self parseMediaConstraints:audioConstraints];
     // constraints.audio.optional.sourceId
-    id optionalVideoConstraints = audioConstraints[@"optional"];
-    if (optionalVideoConstraints && [optionalVideoConstraints isKindOfClass:[NSArray class]] &&
+    id optionalConstraints = audioConstraints[@"optional"];
+    if (optionalConstraints && [optionalConstraints isKindOfClass:[NSArray class]] &&
         !deviceId) {
-      NSArray* options = optionalVideoConstraints;
+      NSArray* options = optionalConstraints;
       for (id item in options) {
         if ([item isKindOfClass:[NSDictionary class]]) {
           NSString* sourceId = ((NSDictionary*)item)[@"sourceId"];
@@ -218,7 +218,7 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
 
   [mediaStream addAudioTrack:audioTrack];
 
-[self.localTracks setObject: audioTrack forKey:trackId];
+ [self.localTracks setObject:localAudioTrack forKey:trackId];
 
   [self ensureAudioSession];
 
@@ -428,14 +428,14 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
           NSString* sourceId = ((NSDictionary*)item)[@"sourceId"];
           if (sourceId) {
              for (AVCaptureDevice *device in captureDevices) {
-                if( [sourceId isEqualToString:device.uniqueID]) {
+                if([sourceId isEqualToString:device.uniqueID]) {
                      videoDevice = device;
                     videoDeviceId = sourceId;
                   }
               }
 
             if (videoDevice) {
-              videoDeviceId = sourceId;
+            
               break;
             }
           }
@@ -538,7 +538,7 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     self.videoCapturer.delegate = self.customDelegate;
   
     VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc] initWithRTCVideoSource:videoSource];
-       // self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
+       self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
     AVCaptureDeviceFormat* selectedFormat = [self selectFormatForDevice:videoDevice
                                                             targetWidth:targetWidth
                                                            targetHeight:targetHeight];
@@ -593,13 +593,13 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
                                                                           : @"unspecified";
     }
       
-    [videoSource adaptOutputFormatToWidth:(int)targetWidth height:(int)targetHeight  fps:(int)targetFps];
+  
 
     videoTrack.settings = @{
       @"deviceId" : videoDeviceId,
       @"kind" : @"videoinput",
-      @"width" : [NSNumber numberWithInteger:targetWidth ],
-      @"height" : [NSNumber numberWithInteger:targetHeight],
+      @"width" : [NSNumber numberWithInteger:selectedWidth ],
+      @"height" : [NSNumber numberWithInteger:selectedHeight],
       @"frameRate" : [NSNumber numberWithInteger:selectedFps],
       @"facingMode" : facingMode,
     };
@@ -971,34 +971,6 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
   result(nil);
 #endif
 }
-
-- (void)mediaStreamTrackSwitchCamera:(RTCMediaStreamTrack*)track result:(FlutterResult)result {
-  if (!self.videoCapturer) {
-    NSLog(@"Video capturer is null. Can't switch camera");
-    return;
-  }
-  self._usingFrontCamera = !self._usingFrontCamera;
-  AVCaptureDevicePosition position =
-      self._usingFrontCamera ? AVCaptureDevicePositionFront : AVCaptureDevicePositionBack;
-  AVCaptureDevice* videoDevice = [self findDeviceForPosition:position];
-  AVCaptureDeviceFormat* selectedFormat = [self selectFormatForDevice:videoDevice
-                                                          targetWidth:self._lastTargetWidth
-                                                         targetHeight:self._lastTargetHeight];
-  [self.videoCapturer startCaptureWithDevice:videoDevice
-                                      format:selectedFormat
-                                         fps:[self selectFpsForFormat:selectedFormat
-                                                            targetFps:self._lastTargetFps]
-                           completionHandler:^(NSError* error) {
-                             if (error != nil) {
-                               result([FlutterError errorWithCode:@"Error while switching camera"
-                                                          message:@"Error while switching camera"
-                                                          details:error]);
-                             } else {
-                               result([NSNumber numberWithBool:self._usingFrontCamera]);
-                             }
-                           }];
-}
-
 - (void)mediaStreamTrackCaptureFrame:(RTCVideoTrack*)track
                               toPath:(NSString*)path
                               result:(FlutterResult)result {

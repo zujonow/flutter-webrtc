@@ -1,5 +1,8 @@
 # Changelog
 
+[0.0.7] - 2025.03.28
+- fix windows crash
+
 [0.0.6] - 2025.03.04
 - get remote participent's track from the stream id.
 

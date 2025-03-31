@@ -373,10 +373,9 @@ public class GetUserMediaImpl {
         if (deviceId != null) {
             try {
 
-                
-            if (VERSION.SDK_INT >= VERSION_CODES.M) {
-                setPreferredInputDevice(Integer.parseInt(deviceId));
-            }
+                if (VERSION.SDK_INT >= VERSION_CODES.M) {
+                    setPreferredInputDevice(Integer.parseInt(deviceId));
+                }
             } catch (Exception e) {
                 Log.e(TAG, "setPreferredInputDevice failed", e);
             }
@@ -540,8 +539,7 @@ public class GetUserMediaImpl {
         VideoSource videoSource = pcFactory.createVideoSource(true);
 
         String threadName = Thread.currentThread().getName() + "_texture_screen_thread";
-        SurfaceTextureHelper surfaceTextureHelper =
-                SurfaceTextureHelper.create(threadName, EglUtils.getRootEglBaseContext());
+        SurfaceTextureHelper surfaceTextureHelper = SurfaceTextureHelper.create(threadName, EglUtils.getRootEglBaseContext());
         videoCapturer.initialize(
                 surfaceTextureHelper, applicationContext, videoSource.getCapturerObserver());
 

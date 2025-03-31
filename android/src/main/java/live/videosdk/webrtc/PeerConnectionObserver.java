@@ -58,7 +58,8 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
   private final EventChannel eventChannel;
   private EventChannel.EventSink eventSink;
 
-  PeerConnectionObserver(PeerConnection.RTCConfiguration configuration, StateProvider stateProvider, BinaryMessenger messenger, String id) {
+  PeerConnectionObserver(PeerConnection.RTCConfiguration configuration, StateProvider stateProvider,
+      BinaryMessenger messenger, String id) {
     this.configuration = configuration;
     this.stateProvider = stateProvider;
     this.messenger = messenger;
@@ -168,6 +169,18 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
     }
   }
 
+  void dataChannelGetBufferedAmount(String dataChannelId, Result result) {
+    DataChannel dataChannel = dataChannels.get(dataChannelId);
+    if (dataChannel != null) {
+      ConstraintsMap params = new ConstraintsMap();
+      params.putLong("bufferedAmount", dataChannel.bufferedAmount());
+      result.success(params.toMap());
+    } else {
+      Log.d(TAG, "dataChannelGetBufferedAmount() dataChannel is null");
+      resultError("dataChannelGetBufferedAmount", "DataChannel is null", result);
+    }
+  }
+
   RtpTransceiver getRtpTransceiverById(String id) {
     RtpTransceiver transceiver = transceivers.get(id);
     if (null == transceiver) {
@@ -202,64 +215,65 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
   }
 
   void handleStatsReport(RTCStatsReport rtcStatsReport, Result result) {
-      Map<String, RTCStats>    reports = rtcStatsReport.getStatsMap();
-      ConstraintsMap params = new ConstraintsMap();
-      ConstraintsArray stats = new ConstraintsArray();
+    Map<String, RTCStats> reports = rtcStatsReport.getStatsMap();
+    ConstraintsMap params = new ConstraintsMap();
+    ConstraintsArray stats = new ConstraintsArray();
 
-      for (RTCStats report : reports.values()) {
-          ConstraintsMap report_map = new ConstraintsMap();
+    for (RTCStats report : reports.values()) {
+      ConstraintsMap report_map = new ConstraintsMap();
 
-          report_map.putString("id", report.getId());
-          report_map.putString("type", report.getType());
-          report_map.putDouble("timestamp", report.getTimestampUs());
+      report_map.putString("id", report.getId());
+      report_map.putString("type", report.getType());
+      report_map.putDouble("timestamp", report.getTimestampUs());
 
-          Map<String, Object> values = report.getMembers();
-          ConstraintsMap v_map = new ConstraintsMap();
-          for (String key : values.keySet()) {
-              Object v = values.get(key);
-              if(v instanceof String) {
-                  v_map.putString(key, (String)v);
-              } else if(v instanceof String[]) {
-                  ConstraintsArray arr = new ConstraintsArray();
-                  for(String s : (String[])v) {
-                      arr.pushString(s);
-                  }
-                  v_map.putArray(key, arr.toArrayList());
-              } else if(v instanceof Integer) {
-                  v_map.putInt(key, (Integer)v);
-              } else if(v instanceof Long) {
-                  v_map.putLong(key, (Long)v);
-              } else if(v instanceof Double) {
-                  v_map.putDouble(key, (Double)v);
-              } else if(v instanceof Boolean) {
-                  v_map.putBoolean(key, (Boolean)v);
-              } else if(v instanceof BigInteger){
-                  v_map.putLong(key, ((BigInteger)v).longValue());
-              }  else if(v instanceof LinkedHashMap) {
-                    ConstraintsMap m = new ConstraintsMap();
-                    for(Map.Entry<String, Object> entry : ((LinkedHashMap<String, Object>)v).entrySet()) {
-                        Object value = entry.getValue();
-                        if(value instanceof String) {
-                            m.putString(entry.getKey(), (String)value);
-                        } else if(value instanceof Integer) {
-                            m.putInt(entry.getKey(), (Integer)value);
-                        } else if(value instanceof Long) {
-                            m.putLong(entry.getKey(), (Long)value);
-                        } else if(value instanceof Double) {
-                            m.putDouble(entry.getKey(), (Double)value);
-                        } else if(value instanceof Boolean) {
-                            m.putBoolean(entry.getKey(), (Boolean)value);
-                        } else if(value instanceof BigInteger) {
-                            m.putLong(entry.getKey(), ((BigInteger)value).longValue());
-                        } else {
-                            Log.d(TAG, "getStats() unknown type: " + value.getClass().getName() + " for [" + entry.getKey() + "] value: " + value);
-                        }
-                    }
-                    v_map.putMap(key, m.toMap());
-              } else {
-                  Log.d(TAG, "getStats() unknown type: " + v.getClass().getName() + " for [" + key + "] value: " + v);
-              }
+      Map<String, Object> values = report.getMembers();
+      ConstraintsMap v_map = new ConstraintsMap();
+      for (String key : values.keySet()) {
+        Object v = values.get(key);
+        if (v instanceof String) {
+          v_map.putString(key, (String) v);
+        } else if (v instanceof String[]) {
+          ConstraintsArray arr = new ConstraintsArray();
+          for (String s : (String[]) v) {
+            arr.pushString(s);
           }
+          v_map.putArray(key, arr.toArrayList());
+        } else if (v instanceof Integer) {
+          v_map.putInt(key, (Integer) v);
+        } else if (v instanceof Long) {
+          v_map.putLong(key, (Long) v);
+        } else if (v instanceof Double) {
+          v_map.putDouble(key, (Double) v);
+        } else if (v instanceof Boolean) {
+          v_map.putBoolean(key, (Boolean) v);
+        } else if (v instanceof BigInteger) {
+          v_map.putLong(key, ((BigInteger) v).longValue());
+        } else if (v instanceof LinkedHashMap) {
+          ConstraintsMap m = new ConstraintsMap();
+          for (Map.Entry<String, Object> entry : ((LinkedHashMap<String, Object>) v).entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof String) {
+              m.putString(entry.getKey(), (String) value);
+            } else if (value instanceof Integer) {
+              m.putInt(entry.getKey(), (Integer) value);
+            } else if (value instanceof Long) {
+              m.putLong(entry.getKey(), (Long) value);
+            } else if (value instanceof Double) {
+              m.putDouble(entry.getKey(), (Double) value);
+            } else if (value instanceof Boolean) {
+              m.putBoolean(entry.getKey(), (Boolean) value);
+            } else if (value instanceof BigInteger) {
+              m.putLong(entry.getKey(), ((BigInteger) value).longValue());
+            } else {
+              Log.d(TAG, "getStats() unknown type: " + value.getClass().getName() + " for [" + entry.getKey()
+                  + "] value: " + value);
+            }
+          }
+          v_map.putMap(key, m.toMap());
+        } else {
+          Log.d(TAG, "getStats() unknown type: " + v.getClass().getName() + " for [" + key + "] value: " + v);
+        }
+      }
       report_map.putMap("values", v_map.toMap());
       stats.pushMap(report_map);
     }
@@ -357,9 +371,7 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
   }
 
   private String getUIDForStream(MediaStream mediaStream) {
-    for (Iterator<Map.Entry<String, MediaStream>> i
-         = remoteStreams.entrySet().iterator();
-         i.hasNext(); ) {
+    for (Iterator<Map.Entry<String, MediaStream>> i = remoteStreams.entrySet().iterator(); i.hasNext();) {
       Map.Entry<String, MediaStream> e = i.next();
       if (e.getValue().equals(mediaStream)) {
         return e.getKey();
@@ -376,8 +388,7 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
     // MediaStream instance with the label default that the implementation
     // reuses.
     if ("default".equals(streamId)) {
-      for (Map.Entry<String, MediaStream> e
-          : remoteStreams.entrySet()) {
+      for (Map.Entry<String, MediaStream> e : remoteStreams.entrySet()) {
         if (e.getValue().equals(mediaStream)) {
           streamUID = e.getKey();
           break;
@@ -701,7 +712,8 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
 
     String degradationPreference = (String) newParameters.get("degradationPreference");
     if (degradationPreference != null) {
-      parameters.degradationPreference = RtpParameters.DegradationPreference.valueOf(degradationPreference.toUpperCase().replace("-", "_"));
+      parameters.degradationPreference = RtpParameters.DegradationPreference
+          .valueOf(degradationPreference.toUpperCase().replace("-", "_"));
     }
 
     for (Map<String, Object> encoding : encodings) {
@@ -728,15 +740,20 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
 
       if (currentParams != null) {
         Boolean active = (Boolean) encoding.get("active");
-        if (active != null) currentParams.active = active;
+        if (active != null)
+          currentParams.active = active;
         Integer maxBitrate = (Integer) encoding.get("maxBitrate");
-        if (maxBitrate != null) currentParams.maxBitrateBps = maxBitrate;
+        if (maxBitrate != null)
+          currentParams.maxBitrateBps = maxBitrate;
         Integer minBitrate = (Integer) encoding.get("minBitrate");
-        if (minBitrate != null) currentParams.minBitrateBps = minBitrate;
+        if (minBitrate != null)
+          currentParams.minBitrateBps = minBitrate;
         Integer maxFramerate = (Integer) encoding.get("maxFramerate");
-        if (maxFramerate != null) currentParams.maxFramerate = maxFramerate;
+        if (maxFramerate != null)
+          currentParams.maxFramerate = maxFramerate;
         Integer numTemporalLayers = (Integer) encoding.get("numTemporalLayers");
-        if (numTemporalLayers != null) currentParams.numTemporalLayers = numTemporalLayers;
+        if (numTemporalLayers != null)
+          currentParams.numTemporalLayers = numTemporalLayers;
         Double scaleResolutionDownBy = (Double) encoding.get("scaleResolutionDownBy");
         if (scaleResolutionDownBy != null)
           currentParams.scaleResolutionDownBy = scaleResolutionDownBy;
@@ -749,8 +766,9 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
   private Map<String, Object> rtpParametersToMap(RtpParameters rtpParameters) {
     ConstraintsMap info = new ConstraintsMap();
     info.putString("transactionId", rtpParameters.transactionId);
-    if(rtpParameters.degradationPreference != null) {
-      info.putString("degradationPreference", rtpParameters.degradationPreference.name().toLowerCase().replace("_", "-"));
+    if (rtpParameters.degradationPreference != null) {
+      info.putString("degradationPreference",
+          rtpParameters.degradationPreference.name().toLowerCase().replace("_", "-"));
     }
     ConstraintsMap rtcp = new ConstraintsMap();
     rtcp.putString("cname", rtpParameters.getRtcp().getCname());
@@ -947,7 +965,8 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
   public void addTransceiverOfType(String mediaType, Map<String, Object> transceiverInit, Result result) {
     RtpTransceiver transceiver;
     if (transceiverInit != null) {
-      transceiver = peerConnection.addTransceiver(stringToMediaType(mediaType), mapToRtpTransceiverInit(transceiverInit));
+      transceiver = peerConnection.addTransceiver(stringToMediaType(mediaType),
+          mapToRtpTransceiverInit(transceiverInit));
     } else {
       transceiver = peerConnection.addTransceiver(stringToMediaType(mediaType));
     }
@@ -970,38 +989,38 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
   }
 
   public void rtpTransceiverSetCodecPreferences(String transceiverId, List<Map<String, Object>> codecs, Result result) {
-      RtpTransceiver transceiver = getRtpTransceiverById(transceiverId);
-      if (transceiver == null) {
-          resultError("rtpTransceiverSetCodecPreferences", "transceiver is null", result);
-          return;
+    RtpTransceiver transceiver = getRtpTransceiverById(transceiverId);
+    if (transceiver == null) {
+      resultError("rtpTransceiverSetCodecPreferences", "transceiver is null", result);
+      return;
+    }
+    List<RtpCapabilities.CodecCapability> preferedCodecs = new ArrayList<>();
+    for (Map<String, Object> codec : codecs) {
+      RtpCapabilities.CodecCapability codecCapability = new RtpCapabilities.CodecCapability();
+      String mimeType = (String) codec.get("mimeType");
+      List<String> mimeTypeParts = Arrays.asList(mimeType.split("/"));
+      codecCapability.name = mimeTypeParts.get(1);
+      codecCapability.kind = stringToMediaType(mimeTypeParts.get(0));
+      codecCapability.mimeType = mimeType;
+      codecCapability.clockRate = (int) codec.get("clockRate");
+      if (codec.get("numChannels") != null)
+        codecCapability.numChannels = (int) codec.get("numChannels");
+      if (codec.get("sdpFmtpLine") != null && codec.get("sdpFmtpLine") != "") {
+        String sdpFmtpLine = (String) codec.get("sdpFmtpLine");
+        codecCapability.parameters = new HashMap<>();
+        String[] parameters = sdpFmtpLine.split(";");
+        for (String parameter : parameters) {
+          if (parameter.contains("=")) {
+            List<String> parameterParts = Arrays.asList(parameter.split("="));
+            codecCapability.parameters.put(parameterParts.get(0), parameterParts.get(1));
+          } else {
+            codecCapability.parameters.put("", parameter);
+          }
+        }
+      } else {
+        codecCapability.parameters = new HashMap<>();
       }
-      List<RtpCapabilities.CodecCapability> preferedCodecs = new ArrayList<>();
-      for(Map<String, Object> codec : codecs) {
-            RtpCapabilities.CodecCapability codecCapability = new RtpCapabilities.CodecCapability();
-            String mimeType = (String) codec.get("mimeType");
-            List<String> mimeTypeParts = Arrays.asList(mimeType.split("/"));
-            codecCapability.name = mimeTypeParts.get(1);
-            codecCapability.kind = stringToMediaType(mimeTypeParts.get(0));
-            codecCapability.mimeType = mimeType;
-            codecCapability.clockRate = (int) codec.get("clockRate");
-            if(codec.get("numChannels") != null)
-                codecCapability.numChannels = (int) codec.get("numChannels");
-            if(codec.get("sdpFmtpLine") != null && codec.get("sdpFmtpLine") != "") {
-                String sdpFmtpLine = (String) codec.get("sdpFmtpLine");
-                codecCapability.parameters = new HashMap<>();
-                String[] parameters = sdpFmtpLine.split(";");
-                for(String parameter : parameters) {
-                    if(parameter.contains("=")) {
-                        List<String> parameterParts = Arrays.asList(parameter.split("="));
-                        codecCapability.parameters.put(parameterParts.get(0), parameterParts.get(1));
-                    } else {
-                        codecCapability.parameters.put("", parameter);
-                    }
-                }
-            } else {
-                codecCapability.parameters = new HashMap<>();
-            }
-            preferedCodecs.add(codecCapability);
+      preferedCodecs.add(codecCapability);
     }
     transceiver.setCodecPreferences(preferedCodecs);
     result.success(null);

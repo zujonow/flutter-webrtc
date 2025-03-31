@@ -1,5 +1,4 @@
 import 'dart:core';
-
 import 'package:flutter/material.dart';
 import 'package:videosdk_webrtc/flutter_webrtc.dart';
 

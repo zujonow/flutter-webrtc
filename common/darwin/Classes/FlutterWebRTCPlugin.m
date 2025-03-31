@@ -18,6 +18,7 @@
 #import "LocalTrack.h"
 #import "LocalAudioTrack.h"
 #import "LocalVideoTrack.h"
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wprotocol"
 
@@ -97,8 +98,12 @@ void postEvent(FlutterEventSink _Nonnull sink, id _Nullable event) {
   id _messenger;
   id _textures;
   BOOL _speakerOn;
+  BOOL _speakerOnButPreferBluetooth;
   AVAudioSessionPort _preferredInput;
   AudioManager* _audioManager;
+#if TARGET_OS_IPHONE
+  FLutterRTCVideoPlatformViewFactory *_platformViewFactory;
+#endif
 }
 
 static FlutterWebRTCPlugin *sharedSingleton;
@@ -158,6 +163,8 @@ static FlutterWebRTCPlugin *sharedSingleton;
 #if TARGET_OS_IPHONE
     _preferredInput = AVAudioSessionPortHeadphones;
     self.viewController = viewController;
+        _platformViewFactory  = [[FLutterRTCVideoPlatformViewFactory alloc] initWithMessenger:messenger];
+    [registrar registerViewFactory:_platformViewFactory withId:FLutterRTCVideoPlatformViewFactoryID];
 #endif
   }
 
@@ -558,7 +565,14 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
     [self dataChannelSend:peerConnectionId dataChannelId:dataChannelId data:data type:type];
     result(nil);
-  } else if ([@"dataChannelClose" isEqualToString:call.method]) {
+    }  else if ([@"dataChannelGetBufferedAmount" isEqualToString:call.method]) {
+    NSDictionary* argsMap = call.arguments;
+    NSString* peerConnectionId = argsMap[@"peerConnectionId"];
+    NSString* dataChannelId = argsMap[@"dataChannelId"];
+
+    [self dataChannelGetBufferedAmount:peerConnectionId dataChannelId:dataChannelId result:result];
+  } 
+  else if ([@"dataChannelClose" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSString* peerConnectionId = argsMap[@"peerConnectionId"];
     NSString* dataChannelId = argsMap[@"dataChannelId"];
@@ -609,59 +623,113 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
       track.isEnabled = enabled.boolValue;
     }
     result(nil);
-  } else if ([@"mediaStreamAddTrack" isEqualToString:call.method]) {
+  }  else if ([@"mediaStreamAddTrack" isEqualToString:call.method]) {
+
     NSDictionary* argsMap = call.arguments;
+
     NSString* streamId = argsMap[@"streamId"];
+
+    NSString* trackId = argsMap[@"trackId"];
+
+      NSLog(@"mediaStreamAddTrack: streamId = %@, trackId = %@", streamId, trackId);
+
+    RTCMediaStream* stream = self.localStreams[streamId];
+
+    if (stream) {
+
+      RTCMediaStreamTrack* track = [self trackForId:trackId peerConnectionId:nil];
+
+      if (track != nil) {
+
+        if ([track isKindOfClass:[RTCAudioTrack class]]) {
+
+          RTCAudioTrack* audioTrack = (RTCAudioTrack*)track;
+
+          [stream addAudioTrack:audioTrack];
+
+        } else if ([track isKindOfClass:[RTCVideoTrack class]]) {
+
+          RTCVideoTrack* videoTrack = (RTCVideoTrack*)track;
+
+          [stream addVideoTrack:videoTrack];
+
+        }
+
+      } else {
+
+        result([FlutterError errorWithCode:@"mediaStreamAddTrack: Track is nil"
+
+                                   message:nil
+
+                                   details:nil]);
+
+      }
+
+
+    } else {
+
+      result([FlutterError errorWithCode:@"mediaStreamAddTrack: Stream is nil"
+
+                                 message:nil
+
+                                 details:nil]);
+
+    }
+
+    result(nil);
+
+  } else if ([@"mediaStreamRemoveTrack" isEqualToString:call.method]) {
+
+    NSDictionary* argsMap = call.arguments;
+
+    NSString* streamId = argsMap[@"streamId"];
+
     NSString* trackId = argsMap[@"trackId"];
 
     RTCMediaStream* stream = self.localStreams[streamId];
+
     if (stream) {
-       id<LocalTrack> track = self.localTracks[trackId];
+
+        id<LocalTrack> track = self.localTracks[trackId];
+
       if (track != nil) {
-              if ([track isKindOfClass:[LocalAudioTrack class]]) {
+
+          if ([track isKindOfClass:[LocalAudioTrack class]]) {
+
           RTCAudioTrack* audioTrack = ((LocalAudioTrack*)track).audioTrack;
-          [stream addAudioTrack:audioTrack];
-    } else if ([track isKindOfClass:[LocalVideoTrack class]]) {
-          RTCVideoTrack* videoTrack = ((LocalVideoTrack*)track).videoTrack;
-          [stream addVideoTrack:videoTrack];
-        }
-      } else {
-        result([FlutterError errorWithCode:@"mediaStreamAddTrack: Track is nil"
-                                   message:nil
-                                   details:nil]);
-      }
-    } else {
-      result([FlutterError errorWithCode:@"mediaStreamAddTrack: Stream is nil"
-                                 message:nil
-                                 details:nil]);
-    }
-    result(nil);
-  } else if ([@"mediaStreamRemoveTrack" isEqualToString:call.method]) {
-    NSDictionary* argsMap = call.arguments;
-    NSString* streamId = argsMap[@"streamId"];
-    NSString* trackId = argsMap[@"trackId"];
-    RTCMediaStream* stream = self.localStreams[streamId];
-    if (stream) {
-      RTCMediaStreamTrack* track = self.localTracks[trackId];
-      if (track != nil) {
-        if ([track isKindOfClass:[RTCAudioTrack class]]) {
-          RTCAudioTrack* audioTrack = (RTCAudioTrack*)track;
+
           [stream removeAudioTrack:audioTrack];
-        } else if ([track isKindOfClass:[RTCVideoTrack class]]) {
-          RTCVideoTrack* videoTrack = (RTCVideoTrack*)track;
+
+      } else if ([track isKindOfClass:[LocalVideoTrack class]]) {
+
+          RTCVideoTrack* videoTrack = ((LocalVideoTrack*)track).videoTrack;
+
           [stream removeVideoTrack:videoTrack];
+
         }
+
       } else {
+
         result([FlutterError errorWithCode:@"mediaStreamRemoveTrack: Track is nil"
+
                                    message:nil
+
                                    details:nil]);
+
       }
+
     } else {
+
       result([FlutterError errorWithCode:@"mediaStreamRemoveTrack: Stream is nil"
+
                                  message:nil
+
                                  details:nil]);
+
     }
+
     result(nil);
+
   } else if ([@"trackDispose" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSString* trackId = argsMap[@"trackId"];
@@ -748,7 +816,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
       [self.renders removeObjectForKey:textureId];
     }
     result(nil);
-  } else if ([@"videoRendererSetSrcObject" isEqualToString:call.method]) {
+   } else if ([@"videoRendererSetSrcObject" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSNumber* textureId = argsMap[@"textureId"];
     FlutterRTCVideoRenderer* render = self.renders[textureId];
@@ -783,7 +851,55 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     }
     [self rendererSetSrcObject:render stream:videoTrack];
     result(nil);
-  } else if ([@"mediaStreamTrackHasTorch" isEqualToString:call.method]) {
+  }
+#if TARGET_OS_IPHONE
+  else if ([@"videoPlatformViewRendererSetSrcObject" isEqualToString:call.method]) {
+      NSDictionary* argsMap = call.arguments;
+      NSNumber* viewId = argsMap[@"viewId"];
+      FlutterRTCVideoPlatformViewController* render = _platformViewFactory.renders[viewId];
+      NSString* streamId = argsMap[@"streamId"];
+      NSString* ownerTag = argsMap[@"ownerTag"];
+      NSString* trackId = argsMap[@"trackId"];
+      if (!render) {
+        result([FlutterError errorWithCode:@"videoRendererSetSrcObject: render is nil"
+                                   message:nil
+                                   details:nil]);
+        return;
+      }
+      RTCMediaStream* stream = nil;
+      RTCVideoTrack* videoTrack = nil;
+      if ([ownerTag isEqualToString:@"local"]) {
+        stream = _localStreams[streamId];
+      }
+      if (!stream) {
+        stream = [self streamForId:streamId peerConnectionId:ownerTag];
+      }
+      if (stream) {
+        NSArray* videoTracks = stream ? stream.videoTracks : nil;
+        videoTrack = videoTracks && videoTracks.count ? videoTracks[0] : nil;
+        for (RTCVideoTrack* track in videoTracks) {
+          if ([track.trackId isEqualToString:trackId]) {
+            videoTrack = track;
+          }
+        }
+        if (!videoTrack) {
+          NSLog(@"Not found video track for RTCMediaStream: %@", streamId);
+        }
+      }
+      render.videoTrack = videoTrack;
+      result(nil);
+  } else if ([@"videoPlatformViewRendererDispose" isEqualToString:call.method]) {
+      NSDictionary* argsMap = call.arguments;
+      NSNumber* viewId = argsMap[@"viewId"];
+      FlutterRTCVideoPlatformViewController* render = _platformViewFactory.renders[viewId];
+      if(render != nil) {
+        render.videoTrack = nil;
+        [_platformViewFactory.renders removeObjectForKey:viewId];
+      }
+      result(nil);
+    }
+#endif
+     else if ([@"mediaStreamTrackHasTorch" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSString* trackId = argsMap[@"trackId"];
     id<LocalTrack> track = self.localTracks[trackId];
@@ -955,6 +1071,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     NSNumber* enable = argsMap[@"enable"];
     _speakerOn = enable.boolValue;
     [AudioUtils setSpeakerphoneOn:_speakerOn];
+    postEvent(self.eventSink, @{@"event" : @"onDeviceChange"});
     result(nil);
   }
   else if ([@"ensureAudioSession" isEqualToString:call.method]) {
@@ -1024,12 +1141,14 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
                 details:nil]);
     }
   } else if ([@"addTrack" isEqualToString:call.method]) {
+    NSLog(@"addTrack");
     NSDictionary* argsMap = call.arguments;
     NSString* peerConnectionId = argsMap[@"peerConnectionId"];
     NSString* trackId = argsMap[@"trackId"];
     NSArray* streamIds = argsMap[@"streamIds"];
     RTCPeerConnection* peerConnection = self.peerConnections[peerConnectionId];
     if (peerConnection == nil) {
+      NSLog(@"addTrack peerConnection is nil");
       result([FlutterError
           errorWithCode:[NSString stringWithFormat:@"%@Failed", call.method]
                 message:[NSString stringWithFormat:@"Error: peerConnection not found!"]
@@ -1037,14 +1156,19 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
       return;
     }
 
+    NSLog(@"addTrack peerConnection %@", peerConnection);
+
     RTCMediaStreamTrack* track = [self trackForId:trackId peerConnectionId:nil];
     if (track == nil) {
+      NSLog(@"addTrack track is nil");
       result([FlutterError errorWithCode:[NSString stringWithFormat:@"%@Failed", call.method]
                                  message:[NSString stringWithFormat:@"Error: track not found!"]
                                  details:nil]);
       return;
     }
+    NSLog(@"addTrack track %@", track);
     RTCRtpSender* sender = [peerConnection addTrack:track streamIds:streamIds];
+    NSLog(@"addTrack sender %@", sender);
     if (sender == nil) {
       result([FlutterError
           errorWithCode:[NSString stringWithFormat:@"%@Failed", call.method]
@@ -1537,46 +1661,68 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
   return stream;
 }
 
+// - (RTCMediaStreamTrack* _Nullable)remoteTrackForId:(NSString* _Nonnull)trackId {
+//     RTCMediaStreamTrack *mediaStreamTrack = nil;
+
+//     for (NSString *currentId in _peerConnections.allKeys) {
+//         RTCPeerConnection *peerConnection = _peerConnections[currentId];
+//         RTCConfiguration *config = peerConnection.configuration;
+//         RTCSdpSemantics sdpSemantics = config.sdpSemantics;
+//         BOOL isUnifiedPlan = (sdpSemantics == RTCSdpSemanticsUnifiedPlan);
+
+//         if (isUnifiedPlan) {
+//             for (RTCRtpReceiver *receiver in peerConnection.receivers) {
+//                 RTCMediaStreamTrack *track = receiver.track;
+//                 if (track && [track.trackId isEqualToString:trackId]) {
+//                     mediaStreamTrack = track;
+//                     break;
+//                 }
+//             }
+//         } else {
+//             for (id streamObj in peerConnection.remoteStreams) {
+//                 if (![streamObj isKindOfClass:[RTCMediaStream class]]) {
+//                     continue;
+//                 }
+//                 RTCMediaStream *stream = (RTCMediaStream *)streamObj;
+//                 for (RTCVideoTrack *videoTrack in stream.videoTracks) {
+//                     if ([videoTrack.trackId isEqualToString:trackId]) {
+//                         mediaStreamTrack = videoTrack;
+//                         break;
+//                     }
+//                 }
+//                 if (mediaStreamTrack) break;
+//             }
+//             if (!mediaStreamTrack && [peerConnection respondsToSelector:@selector(remoteTracks)]) {
+//                 NSDictionary<NSString *, RTCMediaStreamTrack *> *remoteTracks = [peerConnection performSelector:@selector(remoteTracks)];
+//                 mediaStreamTrack = remoteTracks[trackId];
+//             }
+//         }
+//         if (mediaStreamTrack) {
+//             break;
+//         }
+//     }
+//     return mediaStreamTrack;
+// }
+
 - (RTCMediaStreamTrack* _Nullable)remoteTrackForId:(NSString* _Nonnull)trackId {
     RTCMediaStreamTrack *mediaStreamTrack = nil;
-
-    for (NSString *currentId in _peerConnections.allKeys) {
-        RTCPeerConnection *peerConnection = _peerConnections[currentId];
-        RTCConfiguration *config = peerConnection.configuration;
-        RTCSdpSemantics sdpSemantics = config.sdpSemantics;
-        BOOL isUnifiedPlan = (sdpSemantics == RTCSdpSemanticsUnifiedPlan);
-
-        if (isUnifiedPlan) {
-            for (RTCRtpReceiver *receiver in peerConnection.receivers) {
-                RTCMediaStreamTrack *track = receiver.track;
-                if (track && [track.trackId isEqualToString:trackId]) {
-                    mediaStreamTrack = track;
-                    break;
-                }
+      for (NSString* currentId in _peerConnections.allKeys) {
+        RTCPeerConnection* peerConnection = _peerConnections[currentId];
+        mediaStreamTrack = peerConnection.remoteTracks[trackId];
+        if (!mediaStreamTrack) {
+          for (RTCRtpTransceiver* transceiver in peerConnection.transceivers) {
+            if (transceiver.receiver.track != nil &&
+                [transceiver.receiver.track.trackId isEqual:trackId]) {
+                mediaStreamTrack = transceiver.receiver.track;
+              break;
             }
-        } else {
-            for (id streamObj in peerConnection.remoteStreams) {
-                if (![streamObj isKindOfClass:[RTCMediaStream class]]) {
-                    continue;
-                }
-                RTCMediaStream *stream = (RTCMediaStream *)streamObj;
-                for (RTCVideoTrack *videoTrack in stream.videoTracks) {
-                    if ([videoTrack.trackId isEqualToString:trackId]) {
-                        mediaStreamTrack = videoTrack;
-                        break;
-                    }
-                }
-                if (mediaStreamTrack) break;
-            }
-            if (!mediaStreamTrack && [peerConnection respondsToSelector:@selector(remoteTracks)]) {
-                NSDictionary<NSString *, RTCMediaStreamTrack *> *remoteTracks = [peerConnection performSelector:@selector(remoteTracks)];
-                mediaStreamTrack = remoteTracks[trackId];
-            }
+          }
         }
         if (mediaStreamTrack) {
-            break;
+          break;
         }
-    }
+      }
+
     return mediaStreamTrack;
 }
 
@@ -1587,28 +1733,31 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
    id<LocalTrack> track = _localTracks[trackId];
   RTCMediaStreamTrack *mediaStreamTrack = nil;
   if (!track) {
-    for (NSString* currentId in _peerConnections.allKeys) {
-      if (peerConnectionId && [currentId isEqualToString:peerConnectionId] == false) {
-        continue;
-      }
-      RTCPeerConnection* peerConnection = _peerConnections[currentId];
-          mediaStreamTrack = peerConnection.remoteTracks[trackId];
-      if (!mediaStreamTrack) {
-        for (RTCRtpTransceiver* transceiver in peerConnection.transceivers) {
-          if (transceiver.receiver.track != nil &&
-              [transceiver.receiver.track.trackId isEqual:trackId]) {
-            mediaStreamTrack = transceiver.receiver.track;
-            break;
+      for (NSString* currentId in _peerConnections.allKeys) {
+          if (peerConnectionId && [currentId isEqualToString:peerConnectionId] == false) {
+              continue;
           }
-        }
+          RTCPeerConnection* peerConnection = _peerConnections[currentId];
+          mediaStreamTrack = peerConnection.remoteTracks[trackId];
+          if (!mediaStreamTrack) {
+              for (RTCRtpTransceiver* transceiver in peerConnection.transceivers) {
+                  if (transceiver.receiver.track != nil &&
+                      [transceiver.receiver.track.trackId isEqual:trackId]) {
+                      mediaStreamTrack = transceiver.receiver.track;
+                      break;
+                  }
+              }
+          }
+          if (mediaStreamTrack) {
+              break;
+          }
       }
-      if (mediaStreamTrack) {
-        break;
-      }
-    }
+  } else {
+      mediaStreamTrack = [track track];
   }
-  return track;
+  return mediaStreamTrack;
 }
+
 
 - (RTCIceServer*)RTCIceServer:(id)json {
   if (!json) {

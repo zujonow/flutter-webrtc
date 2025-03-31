@@ -26,6 +26,7 @@ class RTCDataChannelNative extends RTCDataChannel {
         .receiveBroadcastStream()
         .listen(eventListener, onError: errorListener);
   }
+
   final String _peerConnectionId;
   final String _label;
   int _bufferedAmount = 0;
@@ -107,6 +108,17 @@ class RTCDataChannelNative extends RTCDataChannel {
     if (obj is Exception) {
       throw obj;
     }
+  }
+
+  @override
+  Future<int> getBufferedAmount() async {
+    final Map<dynamic, dynamic> response = await WebRTC.invokeMethod(
+        'dataChannelGetBufferedAmount', <String, dynamic>{
+      'peerConnectionId': _peerConnectionId,
+      'dataChannelId': _flutterId
+    });
+    _bufferedAmount = response['bufferedAmount'];
+    return _bufferedAmount;
   }
 
   @override

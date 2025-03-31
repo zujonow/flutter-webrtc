@@ -27,11 +27,15 @@ NSArray<RTCDesktopSource*>* _captureSources;
 VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc] initWithRTCVideoSource:videoSource];
 #if TARGET_OS_IPHONE
   BOOL useBroadcastExtension = false;
+  BOOL presentBroadcastPicker = false;
   id videoConstraints = constraints[@"video"];
   if ([videoConstraints isKindOfClass:[NSDictionary class]]) {
     // constraints.video.deviceId
     useBroadcastExtension =
-        [((NSDictionary*)videoConstraints)[@"deviceId"] isEqualToString:@"broadcast"];
+              [((NSDictionary*)videoConstraints)[@"deviceId"] hasPrefix:@"broadcast"];
+    presentBroadcastPicker =
+        useBroadcastExtension &&
+        ![((NSDictionary*)videoConstraints)[@"deviceId"] hasSuffix:@"-manual"];
   }
 
   id screenCapturer;
@@ -51,7 +55,7 @@ VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc]
     [screenCapturer stopCaptureWithCompletionHandler:handler];
   };
 
-  if (useBroadcastExtension) {
+  if (presentBroadcastPicker) {
     NSString* extension =
         [[[NSBundle mainBundle] infoDictionary] valueForKey:kRTCScreenSharingExtension];
 

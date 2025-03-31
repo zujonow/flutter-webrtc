@@ -1,10 +1,9 @@
 import 'dart:core';
 import 'package:collection/collection.dart';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:videosdk_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:videosdk_webrtc/flutter_webrtc.dart';
 
 class VideoSize {
   VideoSize(this.width, this.height);
@@ -117,6 +116,7 @@ class _DeviceEnumerationSampleState extends State<DeviceEnumerationSample> {
 
   Future<void> _negotiate() async {
     var offer = await pc1?.createOffer();
+
     await pc1?.setLocalDescription(offer!);
     await pc2?.setRemoteDescription(offer!);
     var answer = await pc2?.createAnswer();
@@ -273,6 +273,7 @@ class _DeviceEnumerationSampleState extends State<DeviceEnumerationSample> {
           'frameRate': _selectedVideoFPS,
         },
       });
+
       _localRenderer.srcObject = _localStream;
       _inCalling = true;
 
@@ -280,6 +281,7 @@ class _DeviceEnumerationSampleState extends State<DeviceEnumerationSample> {
 
       _localStream?.getTracks().forEach((track) async {
         var rtpSender = await pc1?.addTrack(track, _localStream!);
+
         print('track.settings ' + track.getSettings().toString());
         senders.add(rtpSender!);
       });
