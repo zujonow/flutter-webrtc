@@ -48,6 +48,13 @@ public class CameraUtils {
     this.deviceOrientationManager.start();
   }
 
+  public void dispose() {
+    if (deviceOrientationManager != null) {
+      deviceOrientationManager.stop();
+      deviceOrientationManager = null;
+    }
+  }
+
   public void setFocusMode(MethodCall call, AnyThreadResult result) {
     String trackId = call.argument("trackId");
     String mode = call.argument("mode");
@@ -67,67 +74,62 @@ public class CameraUtils {
       CameraManager manager;
 
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
-        manager =
-                (CameraManager)
-                        getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
-        captureSession =
-                (CameraCaptureSession)
-                        getPrivateProperty(session.getClass(), session, "captureSession");
-        cameraDevice =
-                (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
-        captureFormat =
-                (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session, "captureFormat");
+        Object session = getPrivateProperty(
+            Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        manager = (CameraManager) getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
+        captureSession = (CameraCaptureSession) getPrivateProperty(session.getClass(), session, "captureSession");
+        cameraDevice = (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
+        captureFormat = (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session,
+            "captureFormat");
         fpsUnitFactor = (int) getPrivateProperty(session.getClass(), session, "fpsUnitFactor");
         surface = (Surface) getPrivateProperty(session.getClass(), session, "surface");
-        cameraThreadHandler =
-                (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
+        cameraThreadHandler = (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera2Capturer class have changed
-        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
+        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`",
+            result);
         return;
       }
 
       try {
-        final CaptureRequest.Builder captureRequestBuilder =
-                cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+        final CaptureRequest.Builder captureRequestBuilder = cameraDevice
+            .createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
         switch (mode) {
           case "locked":
-            // When locking the auto-focus the camera device should do a one-time focus and afterwards
-            // set the auto-focus to idle. This is accomplished by setting the CONTROL_AF_MODE to
+            // When locking the auto-focus the camera device should do a one-time focus and
+            // afterwards
+            // set the auto-focus to idle. This is accomplished by setting the
+            // CONTROL_AF_MODE to
             // CONTROL_AF_MODE_AUTO.
             captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
             break;
           case "auto":
             captureRequestBuilder.set(
-                    CaptureRequest.CONTROL_AF_MODE,
-                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+                CaptureRequest.CONTROL_AF_MODE,
+                CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
             break;
           default:
             break;
         }
 
         captureRequestBuilder.set(
-                CaptureRequest.FLASH_MODE,
-                isTorchOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+            CaptureRequest.FLASH_MODE,
+            isTorchOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
 
         captureRequestBuilder.set(
-                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                new Range<>(
-                        captureFormat.framerate.min / fpsUnitFactor,
-                        captureFormat.framerate.max / fpsUnitFactor));
+            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+            new Range<>(
+                captureFormat.framerate.min / fpsUnitFactor,
+                captureFormat.framerate.max / fpsUnitFactor));
 
-        //captureRequestBuilder.set(CaptureRequest.CONTROL_AE_LOCK, false);
+        // captureRequestBuilder.set(CaptureRequest.CONTROL_AE_LOCK, false);
         captureRequestBuilder.addTarget(surface);
         captureSession.setRepeatingRequest(
-                captureRequestBuilder.build(), null, cameraThreadHandler);
+            captureRequestBuilder.build(), null, cameraThreadHandler);
       } catch (CameraAccessException e) {
         // Should never happen since we are already accessing the camera
         throw new RuntimeException(e);
       }
-
 
       result.success(null);
       return;
@@ -136,20 +138,20 @@ public class CameraUtils {
     if (info.capturer instanceof Camera1Capturer) {
       Camera camera;
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        Object session = getPrivateProperty(
+            Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
         camera = (Camera) getPrivateProperty(session.getClass(), session, "camera");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera1Capturer class have changed
-        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
+        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`",
+            result);
         return;
       }
 
       Camera.Parameters params = camera.getParameters();
       params.setFlashMode(
-              isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
-      if(!params.getSupportedFocusModes().isEmpty()) {
+          isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
+      if (!params.getSupportedFocusModes().isEmpty()) {
         switch (mode) {
           case "locked":
             params.setFocusMode(Camera.Parameters.FOCUS_MODE_FIXED);
@@ -186,50 +188,42 @@ public class CameraUtils {
       CameraManager manager;
 
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
-        manager =
-                (CameraManager)
-                        getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
-        captureSession =
-                (CameraCaptureSession)
-                        getPrivateProperty(session.getClass(), session, "captureSession");
-        cameraDevice =
-                (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
-        captureFormat =
-                (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session, "captureFormat");
+        Object session = getPrivateProperty(
+            Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        manager = (CameraManager) getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
+        captureSession = (CameraCaptureSession) getPrivateProperty(session.getClass(), session, "captureSession");
+        cameraDevice = (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
+        captureFormat = (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session,
+            "captureFormat");
         fpsUnitFactor = (int) getPrivateProperty(session.getClass(), session, "fpsUnitFactor");
         surface = (Surface) getPrivateProperty(session.getClass(), session, "surface");
-        cameraThreadHandler =
-                (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
+        cameraThreadHandler = (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera2Capturer class have changed
-        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
+        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`",
+            result);
         return;
       }
 
       try {
         final CameraCharacteristics cameraCharacteristics = manager.getCameraCharacteristics(cameraDevice.getId());
-        final CaptureRequest.Builder captureRequestBuilder =
-                cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+        final CaptureRequest.Builder captureRequestBuilder = cameraDevice
+            .createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
         MeteringRectangle focusRectangle = null;
         Size cameraBoundaries = CameraRegionUtils.getCameraBoundaries(cameraCharacteristics, captureRequestBuilder);
         PlatformChannel.DeviceOrientation orientation = deviceOrientationManager.getLastUIOrientation();
-        focusRectangle =
-                convertPointToMeteringRectangle(cameraBoundaries, focusPoint.x, focusPoint.y, orientation);
+        focusRectangle = convertPointToMeteringRectangle(cameraBoundaries, focusPoint.x, focusPoint.y, orientation);
 
         captureRequestBuilder.set(
-                CaptureRequest.CONTROL_AF_REGIONS,
-                captureRequestBuilder == null ? null : new MeteringRectangle[] {focusRectangle});
+            CaptureRequest.CONTROL_AF_REGIONS,
+            captureRequestBuilder == null ? null : new MeteringRectangle[] { focusRectangle });
         captureRequestBuilder.addTarget(surface);
         captureSession.setRepeatingRequest(
-                captureRequestBuilder.build(), null, cameraThreadHandler);
+            captureRequestBuilder.build(), null, cameraThreadHandler);
       } catch (CameraAccessException e) {
         // Should never happen since we are already accessing the camera
         throw new RuntimeException(e);
       }
-
 
       result.success(null);
       return;
@@ -238,19 +232,19 @@ public class CameraUtils {
     if (info.capturer instanceof Camera1Capturer) {
       Camera camera;
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        Object session = getPrivateProperty(
+            Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
         camera = (Camera) getPrivateProperty(session.getClass(), session, "camera");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera1Capturer class have changed
-        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
+        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`",
+            result);
         return;
       }
 
       Camera.Parameters params = camera.getParameters();
       params.setFlashMode(
-              isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
+          isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
       params.setFocusAreas(null);
 
       result.success(null);
@@ -259,9 +253,10 @@ public class CameraUtils {
     resultError("setFocusMode", "[FocusMode] Video capturer not compatible", result);
   }
 
-  public void setExposureMode(MethodCall call, AnyThreadResult result) {}
+  public void setExposureMode(MethodCall call, AnyThreadResult result) {
+  }
 
-  public void setExposurePoint(MethodCall call,Point exposurePoint,  AnyThreadResult result) {
+  public void setExposurePoint(MethodCall call, Point exposurePoint, AnyThreadResult result) {
     String trackId = call.argument("trackId");
     String mode = call.argument("mode");
     VideoCapturerInfo info = getUserMediaImpl.getCapturerInfo(trackId);
@@ -280,35 +275,29 @@ public class CameraUtils {
       CameraManager manager;
 
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
-        manager =
-                (CameraManager)
-                        getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
-        captureSession =
-                (CameraCaptureSession)
-                        getPrivateProperty(session.getClass(), session, "captureSession");
-        cameraDevice =
-                (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
-        captureFormat =
-                (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session, "captureFormat");
+        Object session = getPrivateProperty(
+            Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        manager = (CameraManager) getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
+        captureSession = (CameraCaptureSession) getPrivateProperty(session.getClass(), session, "captureSession");
+        cameraDevice = (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
+        captureFormat = (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session,
+            "captureFormat");
         fpsUnitFactor = (int) getPrivateProperty(session.getClass(), session, "fpsUnitFactor");
         surface = (Surface) getPrivateProperty(session.getClass(), session, "surface");
-        cameraThreadHandler =
-                (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
+        cameraThreadHandler = (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera2Capturer class have changed
-        resultError("setExposurePoint", "[setExposurePoint] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
+        resultError("setExposurePoint",
+            "[setExposurePoint] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
         return;
       }
 
       try {
         final CameraCharacteristics cameraCharacteristics = manager.getCameraCharacteristics(cameraDevice.getId());
-        final CaptureRequest.Builder captureRequestBuilder =
-                cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+        final CaptureRequest.Builder captureRequestBuilder = cameraDevice
+            .createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
 
-        if(CameraRegionUtils.getControlMaxRegionsAutoExposure(cameraCharacteristics) <= 0) {
+        if (CameraRegionUtils.getControlMaxRegionsAutoExposure(cameraCharacteristics) <= 0) {
           resultError("setExposurePoint", "[setExposurePoint] Camera does not support auto exposure", result);
           return;
         }
@@ -316,11 +305,11 @@ public class CameraUtils {
         MeteringRectangle exposureRectangle = null;
         Size cameraBoundaries = CameraRegionUtils.getCameraBoundaries(cameraCharacteristics, captureRequestBuilder);
         PlatformChannel.DeviceOrientation orientation = deviceOrientationManager.getLastUIOrientation();
-        exposureRectangle =
-                convertPointToMeteringRectangle(cameraBoundaries, exposurePoint.x, exposurePoint.y, orientation);
+        exposureRectangle = convertPointToMeteringRectangle(cameraBoundaries, exposurePoint.x, exposurePoint.y,
+            orientation);
         if (exposureRectangle != null) {
           captureRequestBuilder.set(
-                  CaptureRequest.CONTROL_AE_REGIONS, new MeteringRectangle[] {exposureRectangle});
+              CaptureRequest.CONTROL_AE_REGIONS, new MeteringRectangle[] { exposureRectangle });
         } else {
           MeteringRectangle[] defaultRegions = captureRequestBuilder.get(CaptureRequest.CONTROL_AE_REGIONS);
           captureRequestBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, defaultRegions);
@@ -328,12 +317,11 @@ public class CameraUtils {
 
         captureRequestBuilder.addTarget(surface);
         captureSession.setRepeatingRequest(
-                captureRequestBuilder.build(), null, cameraThreadHandler);
+            captureRequestBuilder.build(), null, cameraThreadHandler);
       } catch (CameraAccessException e) {
         // Should never happen since we are already accessing the camera
         throw new RuntimeException(e);
       }
-
 
       result.success(null);
       return;
@@ -342,19 +330,19 @@ public class CameraUtils {
     if (info.capturer instanceof Camera1Capturer) {
       Camera camera;
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        Object session = getPrivateProperty(
+            Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
         camera = (Camera) getPrivateProperty(session.getClass(), session, "camera");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera1Capturer class have changed
-        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
+        resultError("setFocusMode", "[FocusMode] Failed to get `" + e.fieldName + "` from `" + e.className + "`",
+            result);
         return;
       }
 
       Camera.Parameters params = camera.getParameters();
       params.setFlashMode(
-              isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
+          isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
       params.setFocusAreas(null);
     }
     resultError("setFocusMode", "[FocusMode] Video capturer not compatible", result);
@@ -372,14 +360,10 @@ public class CameraUtils {
       CameraDevice cameraDevice;
 
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
-        manager =
-                (CameraManager)
-                        getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
-        cameraDevice =
-                (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
+        Object session = getPrivateProperty(
+            Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        manager = (CameraManager) getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
+        cameraDevice = (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera2Capturer class have changed
         resultError("hasTorch", "[TORCH] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
@@ -388,8 +372,7 @@ public class CameraUtils {
 
       boolean flashIsAvailable;
       try {
-        CameraCharacteristics characteristics =
-                manager.getCameraCharacteristics(cameraDevice.getId());
+        CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
         flashIsAvailable = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
       } catch (CameraAccessException e) {
         // Should never happen since we are already accessing the camera
@@ -404,9 +387,8 @@ public class CameraUtils {
       Camera camera;
 
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        Object session = getPrivateProperty(
+            Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
         camera = (Camera) getPrivateProperty(session.getClass(), session, "camera");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera1Capturer class have changed
@@ -418,7 +400,7 @@ public class CameraUtils {
       List<String> supportedModes = params.getSupportedFlashModes();
 
       result.success(
-              supportedModes != null && supportedModes.contains(Camera.Parameters.FLASH_MODE_TORCH));
+          supportedModes != null && supportedModes.contains(Camera.Parameters.FLASH_MODE_TORCH));
       return;
     }
 
@@ -443,23 +425,16 @@ public class CameraUtils {
       CameraManager manager;
 
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
-        manager =
-                (CameraManager)
-                        getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
-        captureSession =
-                (CameraCaptureSession)
-                        getPrivateProperty(session.getClass(), session, "captureSession");
-        cameraDevice =
-                (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
-        captureFormat =
-                (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session, "captureFormat");
+        Object session = getPrivateProperty(
+            Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        manager = (CameraManager) getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
+        captureSession = (CameraCaptureSession) getPrivateProperty(session.getClass(), session, "captureSession");
+        cameraDevice = (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
+        captureFormat = (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session,
+            "captureFormat");
         fpsUnitFactor = (int) getPrivateProperty(session.getClass(), session, "fpsUnitFactor");
         surface = (Surface) getPrivateProperty(session.getClass(), session, "surface");
-        cameraThreadHandler =
-                (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
+        cameraThreadHandler = (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera2Capturer class have changed
         resultError("setZoom", "[ZOOM] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
@@ -467,8 +442,8 @@ public class CameraUtils {
       }
 
       try {
-        final CaptureRequest.Builder captureRequestBuilder =
-                cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+        final CaptureRequest.Builder captureRequestBuilder = cameraDevice
+            .createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
 
         final CameraCharacteristics cameraCharacteristics = manager.getCameraCharacteristics(cameraDevice.getId());
         final Rect rect = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
@@ -476,34 +451,34 @@ public class CameraUtils {
 
         final double desiredZoomLevel = Math.max(1.0, Math.min(zoomLevel, maxZoomLevel));
 
-        float ratio = 1.0f / (float)desiredZoomLevel;
+        float ratio = 1.0f / (float) desiredZoomLevel;
 
         if (rect != null) {
           int croppedWidth = rect.width() - Math.round((float) rect.width() * ratio);
           int croppedHeight = rect.height() - Math.round((float) rect.height() * ratio);
-          final Rect desiredRegion = new Rect(croppedWidth / 2, croppedHeight / 2, rect.width() - croppedWidth / 2, rect.height() - croppedHeight / 2);
+          final Rect desiredRegion = new Rect(croppedWidth / 2, croppedHeight / 2, rect.width() - croppedWidth / 2,
+              rect.height() - croppedHeight / 2);
           captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, desiredRegion);
         }
 
         captureRequestBuilder.set(
-                CaptureRequest.FLASH_MODE,
-                isTorchOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+            CaptureRequest.FLASH_MODE,
+            isTorchOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
         captureRequestBuilder.set(
-                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                new Range<>(
-                        captureFormat.framerate.min / fpsUnitFactor,
-                        captureFormat.framerate.max / fpsUnitFactor));
+            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+            new Range<>(
+                captureFormat.framerate.min / fpsUnitFactor,
+                captureFormat.framerate.max / fpsUnitFactor));
         captureRequestBuilder.set(
-                CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
+            CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
         captureRequestBuilder.set(CaptureRequest.CONTROL_AE_LOCK, false);
         captureRequestBuilder.addTarget(surface);
         captureSession.setRepeatingRequest(
-                captureRequestBuilder.build(), null, cameraThreadHandler);
+            captureRequestBuilder.build(), null, cameraThreadHandler);
       } catch (CameraAccessException e) {
         // Should never happen since we are already accessing the camera
         throw new RuntimeException(e);
       }
-
 
       result.success(null);
       return;
@@ -512,9 +487,8 @@ public class CameraUtils {
     if (info.capturer instanceof Camera1Capturer) {
       Camera camera;
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        Object session = getPrivateProperty(
+            Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
         camera = (Camera) getPrivateProperty(session.getClass(), session, "camera");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera1Capturer class have changed
@@ -524,11 +498,11 @@ public class CameraUtils {
 
       Camera.Parameters params = camera.getParameters();
       params.setFlashMode(
-              isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
-      if(params.isZoomSupported()) {
+          isTorchOn ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
+      if (params.isZoomSupported()) {
         int maxZoom = params.getMaxZoom();
         double desiredZoom = Math.max(0, Math.min(zoomLevel, maxZoom));
-        params.setZoom((int)desiredZoom);
+        params.setZoom((int) desiredZoom);
         result.success(null);
         return;
       }
@@ -552,23 +526,17 @@ public class CameraUtils {
       Handler cameraThreadHandler;
 
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
-        CameraManager manager =
-                (CameraManager)
-                        getPrivateProperty(Camera2Capturer.class, info.capturer, "cameraManager");
-        captureSession =
-                (CameraCaptureSession)
-                        getPrivateProperty(session.getClass(), session, "captureSession");
-        cameraDevice =
-                (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
-        captureFormat =
-                (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session, "captureFormat");
+        Object session = getPrivateProperty(
+            Camera2Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        CameraManager manager = (CameraManager) getPrivateProperty(Camera2Capturer.class, info.capturer,
+            "cameraManager");
+        captureSession = (CameraCaptureSession) getPrivateProperty(session.getClass(), session, "captureSession");
+        cameraDevice = (CameraDevice) getPrivateProperty(session.getClass(), session, "cameraDevice");
+        captureFormat = (CameraEnumerationAndroid.CaptureFormat) getPrivateProperty(session.getClass(), session,
+            "captureFormat");
         fpsUnitFactor = (int) getPrivateProperty(session.getClass(), session, "fpsUnitFactor");
         surface = (Surface) getPrivateProperty(session.getClass(), session, "surface");
-        cameraThreadHandler =
-                (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
+        cameraThreadHandler = (Handler) getPrivateProperty(session.getClass(), session, "cameraThreadHandler");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera2Capturer class have changed
         resultError("setTorch", "[TORCH] Failed to get `" + e.fieldName + "` from `" + e.className + "`", result);
@@ -576,22 +544,22 @@ public class CameraUtils {
       }
 
       try {
-        final CaptureRequest.Builder captureRequestBuilder =
-                cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+        final CaptureRequest.Builder captureRequestBuilder = cameraDevice
+            .createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
         captureRequestBuilder.set(
-                CaptureRequest.FLASH_MODE,
-                torch ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+            CaptureRequest.FLASH_MODE,
+            torch ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
         captureRequestBuilder.set(
-                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                new Range<>(
-                        captureFormat.framerate.min / fpsUnitFactor,
-                        captureFormat.framerate.max / fpsUnitFactor));
+            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+            new Range<>(
+                captureFormat.framerate.min / fpsUnitFactor,
+                captureFormat.framerate.max / fpsUnitFactor));
         captureRequestBuilder.set(
-                CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
+            CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
         captureRequestBuilder.set(CaptureRequest.CONTROL_AE_LOCK, false);
         captureRequestBuilder.addTarget(surface);
         captureSession.setRepeatingRequest(
-                captureRequestBuilder.build(), null, cameraThreadHandler);
+            captureRequestBuilder.build(), null, cameraThreadHandler);
       } catch (CameraAccessException e) {
         // Should never happen since we are already accessing the camera
         throw new RuntimeException(e);
@@ -605,9 +573,8 @@ public class CameraUtils {
     if (info.capturer instanceof Camera1Capturer) {
       Camera camera;
       try {
-        Object session =
-                getPrivateProperty(
-                        Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
+        Object session = getPrivateProperty(
+            Camera1Capturer.class.getSuperclass(), info.capturer, "currentSession");
         camera = (Camera) getPrivateProperty(session.getClass(), session, "camera");
       } catch (NoSuchFieldWithNameException e) {
         // Most likely the upstream Camera1Capturer class have changed
@@ -617,7 +584,7 @@ public class CameraUtils {
 
       Camera.Parameters params = camera.getParameters();
       params.setFlashMode(
-              torch ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
+          torch ? Camera.Parameters.FLASH_MODE_TORCH : Camera.Parameters.FLASH_MODE_OFF);
       camera.setParameters(params);
 
       result.success(null);
@@ -626,7 +593,6 @@ public class CameraUtils {
     }
     resultError("setTorch", "[TORCH] Video capturer not compatible", result);
   }
-
 
   private class NoSuchFieldWithNameException extends NoSuchFieldException {
 
@@ -639,13 +605,15 @@ public class CameraUtils {
       this.fieldName = fieldName;
     }
   }
+
   static private void resultError(String method, String error, MethodChannel.Result result) {
     String errorMsg = method + "(): " + error;
     result.error(method, errorMsg, null);
     Log.d(TAG, errorMsg);
   }
+
   private Object getPrivateProperty(Class klass, Object object, String fieldName)
-          throws NoSuchFieldWithNameException {
+      throws NoSuchFieldWithNameException {
     try {
       Field field = klass.getDeclaredField(fieldName);
       field.setAccessible(true);
@@ -657,12 +625,13 @@ public class CameraUtils {
       throw new RuntimeException(e);
     }
   }
+
   @NonNull
   public static MeteringRectangle convertPointToMeteringRectangle(
-          @NonNull Size boundaries,
-          double x,
-          double y,
-          @NonNull PlatformChannel.DeviceOrientation orientation) {
+      @NonNull Size boundaries,
+      double x,
+      double y,
+      @NonNull PlatformChannel.DeviceOrientation orientation) {
     assert (boundaries.getWidth() > 0 && boundaries.getHeight() > 0);
     assert (x >= 0 && x <= 1);
     assert (y >= 0 && y <= 1);
@@ -715,7 +684,7 @@ public class CameraUtils {
 
   static class MeteringRectangleFactory {
     public static MeteringRectangle create(
-            int x, int y, int width, int height, int meteringWeight) {
+        int x, int y, int width, int height, int meteringWeight) {
       return new MeteringRectangle(x, y, width, height, meteringWeight);
     }
   }
