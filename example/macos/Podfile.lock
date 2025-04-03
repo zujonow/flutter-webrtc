@@ -27,8 +27,8 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
-  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
-  videosdk_webrtc: 9b6365afff44bd6cb560df0d48895bd50b77a901
+  path_provider_foundation: 9bc8eb19593bc48ca2ef2f4744f4374259710c99
+  videosdk_webrtc: 2d8aba14fae0cf770c0d175049118a6b09a1f2ec
   WebRTC-SDK: 79942c006ea64f6fb48d7da8a4786dfc820bc1db
 
 PODFILE CHECKSUM: 9ebaf0ce3d369aaa26a9ea0e159195ed94724cf3

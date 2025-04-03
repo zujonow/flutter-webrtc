@@ -145,13 +145,17 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   void dispose() {
     for (final MediaStream mediaStream : localStreams.values()) {
       streamDispose(mediaStream);
-      mediaStream.dispose();
+      // mediaStream.dispose();
     }
     localStreams.clear();
     for (final LocalTrack track : localTracks.values()) {
       track.dispose();
     }
     localTracks.clear();
+    if (cameraUtils != null) {
+      cameraUtils.dispose();
+    }
+
     for (final PeerConnectionObserver connection : mPeerConnectionObservers.values()) {
       peerConnectionDispose(connection);
     }
