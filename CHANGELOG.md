@@ -1,5 +1,8 @@
 # Changelog
 
+[0.0.8] - 2025.04.03
+- fixed MediaStream Dispose crash
+
 [0.0.7] - 2025.03.31
 - fixed windows crash
 
