@@ -1,6 +1,6 @@
 # Changelog
 
-[0.0.8] - 2025.04.03
+[0.0.8] - 2025.04.08
 - fixed MediaStream Dispose crash
 
 [0.0.7] - 2025.03.31
