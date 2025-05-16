@@ -1,4 +1,6 @@
 # Changelog
+[0.0.9] - 2025.05.16
+- fixed iOS Virtual Background Issue
 
 [0.0.8] - 2025.04.08
 - fixed MediaStream Dispose crash

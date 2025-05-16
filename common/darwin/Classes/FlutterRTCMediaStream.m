@@ -538,7 +538,7 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     self.videoCapturer.delegate = self.customDelegate;
   
     VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc] initWithRTCVideoSource:videoSource];
-       self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
+   //    self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
     AVCaptureDeviceFormat* selectedFormat = [self selectFormatForDevice:videoDevice
                                                             targetWidth:targetWidth
                                                            targetHeight:targetHeight];
