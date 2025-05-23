@@ -34,9 +34,6 @@ class RTCVideoPlatformViewController extends ValueNotifier<RTCVideoValue>
   int get videoHeight => value.height.toInt();
 
   @override
-  RTCVideoValue get videoValue => value;
-
-  @override
   int? get textureId => _viewId;
 
   @override

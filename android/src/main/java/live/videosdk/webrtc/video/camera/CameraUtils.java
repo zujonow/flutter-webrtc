@@ -45,7 +45,8 @@ public class CameraUtils {
     this.getUserMediaImpl = getUserMediaImpl;
     this.activity = activity;
     this.deviceOrientationManager = new DeviceOrientationManager(activity, 0);
-    this.deviceOrientationManager.start();
+    // TODO: get a proper fix at some point
+    // this.deviceOrientationManager.start();
   }
 
   public void dispose() {
