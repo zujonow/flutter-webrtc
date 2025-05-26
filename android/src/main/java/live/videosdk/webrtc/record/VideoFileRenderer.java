@@ -144,6 +144,7 @@ class VideoFileRenderer implements VideoSink, SamplesReadyCallback {
                     latch.countDown();
                 }
             });
+        }
         renderThreadHandler.post(() -> {
             try {
                 if (encoder != null) {
