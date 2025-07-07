@@ -52,6 +52,8 @@ import live.videosdk.webrtc.utils.ObjectType;
 import live.videosdk.webrtc.utils.PermissionUtils;
 import live.videosdk.webrtc.video.LocalVideoTrack;
 import live.videosdk.webrtc.video.VideoCapturerInfo;
+import live.videosdk.webrtc.audio.AudioPlaybackCaptureController;
+
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
 import org.webrtc.Camera1Capturer;
@@ -121,6 +123,9 @@ public class GetUserMediaImpl {
     private AudioDeviceInfo preferredInput = null;
     private boolean isTorchOn;
     private Intent mediaProjectionData = null;
+
+    private AudioPlaybackCaptureController audioPlaybackCaptureController;
+
 
     public void screenRequestPermissions(ResultReceiver resultReceiver) {
         mediaProjectionData = null;
@@ -233,9 +238,13 @@ public class GetUserMediaImpl {
         }
     }
 
-    GetUserMediaImpl(StateProvider stateProvider, Context applicationContext) {
+    GetUserMediaImpl(StateProvider stateProvider, Context applicationContext, AudioPlaybackCaptureController audioPlaybackCaptureController) {
+        if (Build.VERSION.SDK_INT < minAPILevel) {
+            throw new RuntimeException("GetUserMediaImpl requires API level " + minAPILevel + " or higher");
+        }
         this.stateProvider = stateProvider;
         this.applicationContext = applicationContext;
+        this.audioPlaybackCaptureController = audioPlaybackCaptureController;
     }
 
     static private void resultError(String method, String error, Result result) {
@@ -512,19 +521,19 @@ public class GetUserMediaImpl {
     private void getDisplayMedia(final Result result, final MediaStream mediaStream, final Intent mediaProjectionData) {
         /* Create ScreenCapture */
         VideoTrack displayTrack = null;
-        VideoCapturer videoCapturer = null;
-        videoCapturer =
-                new OrientationAwareScreenCapturer(
-                        mediaProjectionData,
-                        new MediaProjection.Callback() {
-                            @Override
-                            public void onStop() {
-                                super.onStop();
-                                // After Huawei P30 and Android 10 version test, the onstop method is called, which will not affect the next process,
-                                // and there is no need to call the resulterror method
-                                //resultError("MediaProjection.Callback()", "User revoked permission to capture the screen.", result);
-                            }
-                        });
+        VideoCapturer videoCapturer = new OrientationAwareScreenCapturer(
+                mediaProjectionData,
+                new MediaProjection.Callback() {
+                    @Override
+                    public void onStop() {
+                        super.onStop();
+                        // Stop system audio capture when the user stops screen sharing
+                        if (audioPlaybackCaptureController != null) {
+                            audioPlaybackCaptureController.stopCapture();
+                        }
+                    }
+                });
+
         if (videoCapturer == null) {
             resultError("screenRequestPermissions", "GetDisplayMediaFailed, User revoked permission to capture the screen.", result);
             return;
@@ -535,12 +544,10 @@ public class GetUserMediaImpl {
 
         String threadName = Thread.currentThread().getName() + "_texture_screen_thread";
         SurfaceTextureHelper surfaceTextureHelper = SurfaceTextureHelper.create(threadName, EglUtils.getRootEglBaseContext());
-        videoCapturer.initialize(
-                surfaceTextureHelper, applicationContext, videoSource.getCapturerObserver());
+        videoCapturer.initialize(surfaceTextureHelper, applicationContext, videoSource.getCapturerObserver());
 
-        WindowManager wm =
-                (WindowManager) applicationContext.getSystemService(Context.WINDOW_SERVICE);
-
+        // Get screen size
+        WindowManager wm = (WindowManager) applicationContext.getSystemService(Context.WINDOW_SERVICE);
         Display display = wm.getDefaultDisplay();
         Point size = new Point();
         display.getRealSize(size);
@@ -572,6 +579,7 @@ public class GetUserMediaImpl {
 
             stateProvider.putLocalTrack(id, displayLocalVideoTrack);
 
+            // Track parameters setup
             ConstraintsMap track_ = new ConstraintsMap();
             String kind = displayTrack.kind();
 
@@ -594,6 +602,35 @@ public class GetUserMediaImpl {
         successResult.putArray("audioTracks", audioTracks.toArrayList());
         successResult.putArray("videoTracks", videoTracks.toArrayList());
         result.success(successResult.toMap());
+
+        // Start capturing system audio along with screen capture (Android 10+)
+        if (audioPlaybackCaptureController != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Log.d("SystemAudioMixer", "Starting system audio capture along with screen capture");
+
+            try {
+                // Create MediaProjection from the Intent data
+                MediaProjectionManager projectionManager = (MediaProjectionManager) applicationContext.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                MediaProjection mediaProjection = projectionManager.getMediaProjection(Activity.RESULT_OK, mediaProjectionData);
+                
+                if (mediaProjection != null) {
+                    audioPlaybackCaptureController.initialize(mediaProjection);
+                    audioPlaybackCaptureController.startCapture();
+                    Log.d("SystemAudioMixer", "System audio capture started successfully");
+                } else {
+                    Log.e("SystemAudioMixer", "Failed to create MediaProjection from Intent data");
+                }
+            } catch (Exception e) {
+                Log.e("SystemAudioMixer", "Error starting system audio capture", e);
+            }
+        } else {
+            if (audioPlaybackCaptureController == null) {
+                Log.e("SystemAudioMixer", "System audio capture not supported: audioPlaybackCaptureController is null");
+            } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                Log.e("SystemAudioMixer", "System audio capture not supported: Android version " + Build.VERSION.SDK_INT + " < " + Build.VERSION_CODES.Q);
+            } else {
+                Log.e("SystemAudioMixer", "System audio capture not supported: unknown reason");
+            }
+        }
     }
 
     /**

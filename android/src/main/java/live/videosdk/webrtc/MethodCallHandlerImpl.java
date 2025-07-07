@@ -95,6 +95,7 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.view.TextureRegistry;
 import io.flutter.view.TextureRegistry.SurfaceTextureEntry;
+import live.videosdk.webrtc.audio.AudioPlaybackCaptureController;
 
 public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   static public final String TAG = "FlutterWebRTCPlugin";
@@ -130,6 +131,8 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   private CustomVideoDecoderFactory videoDecoderFactory;
 
   public AudioProcessingController audioProcessingController;
+
+  public AudioPlaybackCaptureController audioPlaybackCaptureController;
 
   MethodCallHandlerImpl(Context context, BinaryMessenger messenger, TextureRegistry textureRegistry) {
     this.context = context;
@@ -175,9 +178,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
             .setEnableInternalTracer(true)
             .createInitializationOptions());
 
-    getUserMediaImpl = new GetUserMediaImpl(this, context);
-
-    cameraUtils = new CameraUtils(getUserMediaImpl, activity);
+    Log.d("SystemAudioMixer", "PeerConnectionFactory initialized");
 
     frameCryptor = new FlutterRTCFrameCryptor(this);
 
@@ -221,6 +222,33 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     audioDeviceModuleBuilder.setSamplesReadyCallback(recordSamplesReadyCallbackAdapter);
     audioDeviceModuleBuilder.setPlaybackSamplesReadyCallback(playbackSamplesReadyCallbackAdapter);
 
+    if (audioAttributes != null) {
+      audioDeviceModuleBuilder.setAudioAttributes(audioAttributes);
+    }
+
+    // 🔧 Create system audio controller with proper ADM reference
+    audioPlaybackCaptureController = new AudioPlaybackCaptureController(context, null);
+    
+    // 🔧 Set the audio buffer callback through the builder
+    audioDeviceModuleBuilder.setAudioBufferCallback(audioPlaybackCaptureController);
+    
+    // ✅ Create ADM with the callback already set
+    audioDeviceModule = audioDeviceModuleBuilder.createAudioDeviceModule();
+    
+    // 🔧 Now update the controller with the proper ADM reference
+    // audioPlaybackCaptureController.updateAudioDeviceModule((JavaAudioDeviceModule) audioDeviceModule);
+    // Log.d("SystemAudioMixer", "AudioPlaybackCaptureController updated with ADM reference");
+    
+    if (!bypassVoiceProcessing && JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()) {
+        audioDeviceModule.setNoiseSuppressorEnabled(true);
+    }
+    
+    // ✅ Now create GetUserMediaImpl with the properly initialized controller
+    getUserMediaImpl = new GetUserMediaImpl(this, context, audioPlaybackCaptureController);
+    getUserMediaImpl.audioDeviceModule = (JavaAudioDeviceModule) audioDeviceModule;
+
+    cameraUtils = new CameraUtils(getUserMediaImpl, activity);
+
     recordSamplesReadyCallbackAdapter.addCallback(getUserMediaImpl.inputSamplesInterceptor);
 
     recordSamplesReadyCallbackAdapter.addCallback(new JavaAudioDeviceModule.SamplesReadyCallback() {
@@ -233,18 +261,6 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         }
       }
     });
-
-    if (audioAttributes != null) {
-      audioDeviceModuleBuilder.setAudioAttributes(audioAttributes);
-    }
-
-    audioDeviceModule = audioDeviceModuleBuilder.createAudioDeviceModule();
-    if (!bypassVoiceProcessing) {
-      if (JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()) {
-        audioDeviceModule.setNoiseSuppressorEnabled(true);
-      }
-    }
-    getUserMediaImpl.audioDeviceModule = (JavaAudioDeviceModule) audioDeviceModule;
 
     final Options options = new Options();
     options.networkIgnoreMask = networkIgnoreMask;
