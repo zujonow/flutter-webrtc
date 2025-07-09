@@ -32,6 +32,8 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
     private AudioRecord audioRecord;
     private boolean isCapturing = false;
     private MediaProjection mediaProjection;
+
+    private boolean shareScreenAudio ;
     private float gain = DEFAULT_GAIN;
 
     // New field to hold the ADM you built in WebRTCModule
@@ -42,8 +44,9 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
         this.audioDeviceModule = audioDeviceModule;
     }
 
-    public void initialize(MediaProjection mediaProjection) {
+    public void initialize(MediaProjection mediaProjection, boolean shareScreenAudio) {
         this.mediaProjection = mediaProjection;
+        this.shareScreenAudio = shareScreenAudio;
     }
 
     @Override
@@ -54,7 +57,7 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
                          int bytesRead,
                          long captureTimeNs) {
         // If not capturing system audio, do nothing.
-        if (!isCapturing || audioRecord == null) {
+        if (!isCapturing || audioRecord == null || !shareScreenAudio) {
             return captureTimeNs;
         }
 

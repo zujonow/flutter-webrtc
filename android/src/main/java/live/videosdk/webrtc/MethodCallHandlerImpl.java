@@ -751,7 +751,13 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "getDisplayMedia": {
         Map<String, Object> constraints = call.argument("constraints");
         ConstraintsMap constraintsMap = new ConstraintsMap(constraints);
-        getDisplayMedia(constraintsMap, result);
+        boolean screenShareAudio = false;
+        if (constraintsMap.hasKey("screenShareAudio") && constraintsMap.getType("screenShareAudio") == ObjectType.Boolean) {
+                      screenShareAudio = constraintsMap.getBoolean("screenShareAudio");
+            // Remove the screenShareAudio flag from constraints to avoid interfering with WebRTC
+            constraintsMap.delete("screenShareAudio");
+        }
+        getDisplayMedia(constraintsMap, result, screenShareAudio);
         break;
       }
       case "startRecordToFile":
@@ -1526,7 +1532,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     getUserMediaImpl.getUserMedia(constraints, result, mediaStream);
   }
 
-  public void getDisplayMedia(ConstraintsMap constraints, Result result) {
+  public void getDisplayMedia(ConstraintsMap constraints, Result result, boolean screenShareAudio) {
     String streamId = getNextStreamUUID();
     MediaStream mediaStream = mFactory.createLocalMediaStream(streamId);
 
@@ -1539,7 +1545,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       return;
     }
 
-    getUserMediaImpl.getDisplayMedia(constraints, result, mediaStream);
+    getUserMediaImpl.getDisplayMedia(constraints, result, mediaStream, screenShareAudio);
   }
 
   public void getSources(Result result) {

@@ -497,7 +497,7 @@ public class GetUserMediaImpl {
     }
 
     void getDisplayMedia(
-            final ConstraintsMap constraints, final Result result, final MediaStream mediaStream) {
+            final ConstraintsMap constraints, final Result result, final MediaStream mediaStream, final boolean screenShareAudio) {
         if (mediaProjectionData == null) {
             screenRequestPermissions(
                     new ResultReceiver(new Handler(Looper.getMainLooper())) {
@@ -510,15 +510,15 @@ public class GetUserMediaImpl {
                                 resultError("screenRequestPermissions", "User didn't give permission to capture the screen.", result);
                                 return;
                             }
-                            getDisplayMedia(result, mediaStream, mediaProjectionData);
+                            getDisplayMedia(result, mediaStream, mediaProjectionData,screenShareAudio);
                         }
                     });
         } else {
-            getDisplayMedia(result, mediaStream, mediaProjectionData);
+            getDisplayMedia(result, mediaStream, mediaProjectionData, screenShareAudio);
         }
     }
 
-    private void getDisplayMedia(final Result result, final MediaStream mediaStream, final Intent mediaProjectionData) {
+    private void getDisplayMedia(final Result result, final MediaStream mediaStream, final Intent mediaProjectionData ,final boolean screenShareAudio ) {
         /* Create ScreenCapture */
         VideoTrack displayTrack = null;
         VideoCapturer videoCapturer = new OrientationAwareScreenCapturer(
@@ -613,7 +613,7 @@ public class GetUserMediaImpl {
                 MediaProjection mediaProjection = projectionManager.getMediaProjection(Activity.RESULT_OK, mediaProjectionData);
                 
                 if (mediaProjection != null) {
-                    audioPlaybackCaptureController.initialize(mediaProjection);
+                    audioPlaybackCaptureController.initialize(mediaProjection , screenShareAudio);
                     audioPlaybackCaptureController.startCapture();
                     Log.d("SystemAudioMixer", "System audio capture started successfully");
                 } else {
