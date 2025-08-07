@@ -9,9 +9,10 @@
 #import "FlutterSocketConnection.h"
 #import "FlutterSocketConnectionFrameReader.h"
 
-NSString* const kRTCScreensharingSocketFD = @"rtc_SSFD";
 NSString* const kRTCAppGroupIdentifier = @"RTCAppGroupIdentifier";
 NSString* const kRTCScreenSharingExtension = @"RTCScreenSharingExtension";
+NSString *const kRTCScreensharingVideoSocketFD = @"rtc_SSFD_video";
+NSString *const kRTCScreensharingAudioSocketFD = @"rtc_SSFD_audio";
 
 @interface FlutterBroadcastScreenCapturer ()
 
@@ -28,17 +29,28 @@ NSString* const kRTCScreenSharingExtension = @"RTCScreenSharingExtension";
 @implementation FlutterBroadcastScreenCapturer
 
 - (void)startCapture {
-  if (!self.appGroupIdentifier) {
-    return;
-  }
+    if (!self.appGroupIdentifier) {
+        return;
+    }
+    
+    NSString *videoSocketFilePath = [self filePathForApplicationGroupIdentifier:self.appGroupIdentifier
+                                                                     socketType:@"video"];
+    FlutterSocketConnection *videoConnection = [[FlutterSocketConnection alloc] initWithFilePath:videoSocketFilePath];
+    
+    NSString *audioSocketFilePath = [self filePathForApplicationGroupIdentifier:self.appGroupIdentifier
+                                              
+                                                                     socketType:@"audio"];
+    
+    FlutterSocketConnectionFrameReader* frameReader =
+        [[FlutterSocketConnectionFrameReader alloc] initWithDelegate:self.delegate];
 
-  NSString* socketFilePath = [self filePathForApplicationGroupIdentifier:self.appGroupIdentifier];
-  FlutterSocketConnectionFrameReader* frameReader =
-      [[FlutterSocketConnectionFrameReader alloc] initWithDelegate:self.delegate];
-  FlutterSocketConnection* connection =
-      [[FlutterSocketConnection alloc] initWithFilePath:socketFilePath];
-  self.capturer = frameReader;
-  [self.capturer startCaptureWithConnection:connection];
+    
+    FlutterSocketConnection *audioConnection = [[FlutterSocketConnection alloc] initWithFilePath:audioSocketFilePath];
+    self.capturer = frameReader;
+    
+    [self.capturer startCaptureWithVideoConnection:videoConnection
+                                     audioConnection:audioConnection];
+    
 }
 
 - (void)stopCapture {
@@ -52,18 +64,24 @@ NSString* const kRTCScreenSharingExtension = @"RTCScreenSharingExtension";
 }
 // MARK: Private Methods
 
-- (NSString*)appGroupIdentifier {
-  NSDictionary* infoDictionary = [[NSBundle mainBundle] infoDictionary];
-  return infoDictionary[kRTCAppGroupIdentifier];
+- (NSString *)appGroupIdentifier {
+    NSDictionary *infoDictionary = [[NSBundle mainBundle] infoDictionary];
+    return infoDictionary[kRTCAppGroupIdentifier];
 }
 
-- (NSString*)filePathForApplicationGroupIdentifier:(nonnull NSString*)identifier {
-  NSURL* sharedContainer =
-      [[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:identifier];
-  NSString* socketFilePath =
-      [[sharedContainer URLByAppendingPathComponent:kRTCScreensharingSocketFD] path];
 
-  return socketFilePath;
+- (NSString *)filePathForApplicationGroupIdentifier:(nonnull NSString *)identifier
+                                        socketType:(NSString *)socketType {
+    NSURL *sharedContainer =
+        [[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:identifier];
+    
+    NSString *socketSuffix = [socketType isEqualToString:@"video"] ?
+                            kRTCScreensharingVideoSocketFD :
+                            kRTCScreensharingAudioSocketFD;
+    
+    NSString *socketFilePath = [[sharedContainer URLByAppendingPathComponent:socketSuffix] path];
+    
+    return socketFilePath;
 }
 
 @end

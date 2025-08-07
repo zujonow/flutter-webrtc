@@ -13,129 +13,112 @@
 
 #import "FlutterSocketConnection.h"
 #import "FlutterSocketConnectionFrameReader.h"
+#import "CustomAudioDevice.h"
 
 const NSUInteger kMaxReadLength = 10 * 1024;
 
-@interface Message : NSObject
+@class FrameParser;
 
-@property(nonatomic, assign, readonly) CVImageBufferRef imageBuffer;
-@property(nonatomic, copy, nullable) void (^didComplete)(BOOL succes, Message* message);
-
-- (NSInteger)appendBytes:(UInt8*)buffer length:(NSUInteger)length;
-
+@protocol FrameParserDelegate <NSObject>
+- (void)parser:(FrameParser *)parser didReadFrame:(NSData *)frame withHeaders:(NSDictionary *)headers;
 @end
 
-@interface Message ()
 
-@property(nonatomic, assign) CVImageBufferRef imageBuffer;
-@property(nonatomic, assign) int imageOrientation;
-@property(nonatomic, assign) CFHTTPMessageRef framedMessage;
-
+@interface FrameParser : NSObject
+@property(nonatomic, weak) id<FrameParserDelegate> delegate;
+- (void)appendData:(NSData *)data;
 @end
 
-@implementation Message
+@interface FrameParser()
+@property(nonatomic, strong) NSMutableData *buffer;
+@end
+
+
+@implementation FrameParser
 
 - (instancetype)init {
-  self = [super init];
-  if (self) {
-    self.imageBuffer = NULL;
-  }
-
-  return self;
+    if (self = [super init]) {
+        _buffer = [NSMutableData data];
+    }
+    return self;
 }
 
-- (void)dealloc {
-  CVPixelBufferRelease(_imageBuffer);
+- (void)appendData:(NSData *)data {
+    [self.buffer appendData:data];
+    [self processBuffer];
 }
 
-/** Returns the amount of missing bytes to complete the message, or -1 when not enough bytes were
- * provided to compute the message length */
-- (NSInteger)appendBytes:(UInt8*)buffer length:(NSUInteger)length {
-  if (!_framedMessage) {
-    _framedMessage = CFHTTPMessageCreateEmpty(kCFAllocatorDefault, false);
-  }
-
-  CFHTTPMessageAppendBytes(_framedMessage, buffer, length);
-  if (!CFHTTPMessageIsHeaderComplete(_framedMessage)) {
-    return -1;
-  }
-
-  NSInteger contentLength = [CFBridgingRelease(CFHTTPMessageCopyHeaderFieldValue(
-      _framedMessage, (__bridge CFStringRef) @"Content-Length")) integerValue];
-  NSInteger bodyLength =
-      (NSInteger)[CFBridgingRelease(CFHTTPMessageCopyBody(_framedMessage)) length];
-
-  NSInteger missingBytesCount = contentLength - bodyLength;
-  if (missingBytesCount == 0) {
-    BOOL success = [self unwrapMessage:self.framedMessage];
-    self.didComplete(success, self);
-
-    CFRelease(self.framedMessage);
-    self.framedMessage = NULL;
-  }
-
-  return missingBytesCount;
+- (void)processBuffer {
+    if (self.buffer.length == 0) {
+        return;
+    }
+    
+    NSRange separatorRange = [self.buffer rangeOfData:[@"\r\n\r\n" dataUsingEncoding:NSASCIIStringEncoding] options:0 range:NSMakeRange(0, self.buffer.length)];
+    
+    if (separatorRange.location == NSNotFound) {
+        return;
+    }
+    
+    NSRange headerRange = NSMakeRange(0, separatorRange.location);
+    NSData *headerData = [self.buffer subdataWithRange:headerRange];
+    NSString *headerString = [[NSString alloc] initWithData:headerData encoding:NSUTF8StringEncoding];
+    
+    NSDictionary *headers = [self parseHeaders:headerString];
+    NSInteger contentLength = [headers[@"Content-Length"] integerValue];
+    
+    if (contentLength == 0) {
+        [self.buffer setData:[NSData data]];
+        return;
+    }
+    
+    NSInteger frameTotalLength = separatorRange.location + separatorRange.length + contentLength;
+    
+    if (self.buffer.length < frameTotalLength) {
+        return;
+    }
+    
+    NSInteger frameBodyLocation = separatorRange.location + separatorRange.length;
+    NSRange frameBodyRange = NSMakeRange(frameBodyLocation, contentLength);
+    NSData *frameData = [self.buffer subdataWithRange:frameBodyRange];
+    
+    [self.delegate parser:self didReadFrame:frameData withHeaders:headers];
+    
+    [self.buffer replaceBytesInRange:NSMakeRange(0, frameTotalLength) withBytes:NULL length:0];
+    
+    [self processBuffer];
 }
 
-// MARK: Private Methods
-
-- (CIContext*)imageContext {
-  // Initializing a CIContext object is costly, so we use a singleton instead
-  static CIContext* imageContext = nil;
-  static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{
-    imageContext = [[CIContext alloc] initWithOptions:nil];
-  });
-
-  return imageContext;
+- (NSDictionary *)parseHeaders:(NSString *)headerString {
+    NSMutableDictionary *headers = [NSMutableDictionary dictionary];
+    NSArray *lines = [headerString componentsSeparatedByString:@"\r\n"];
+    for (NSString *line in lines) {
+        NSRange colonRange = [line rangeOfString:@": "];
+        if (colonRange.location != NSNotFound) {
+            NSString *key = [line substringToIndex:colonRange.location];
+            NSString *value = [line substringFromIndex:colonRange.location + colonRange.length];
+            headers[key] = value;
+        }
+    }
+    return headers;
 }
-
-- (BOOL)unwrapMessage:(CFHTTPMessageRef)framedMessage {
-  size_t width = [CFBridgingRelease(CFHTTPMessageCopyHeaderFieldValue(
-      _framedMessage, (__bridge CFStringRef) @"Buffer-Width")) integerValue];
-  size_t height = [CFBridgingRelease(CFHTTPMessageCopyHeaderFieldValue(
-      _framedMessage, (__bridge CFStringRef) @"Buffer-Height")) integerValue];
-  _imageOrientation = [CFBridgingRelease(CFHTTPMessageCopyHeaderFieldValue(
-      _framedMessage, (__bridge CFStringRef) @"Buffer-Orientation")) intValue];
-
-  NSData* messageData = CFBridgingRelease(CFHTTPMessageCopyBody(_framedMessage));
-
-  // Copy the pixel buffer
-  CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, width, height,
-                                        kCVPixelFormatType_32BGRA, NULL, &_imageBuffer);
-  if (status != kCVReturnSuccess) {
-    NSLog(@"CVPixelBufferCreate failed");
-    return false;
-  }
-
-  [self copyImageData:messageData toPixelBuffer:&_imageBuffer];
-
-  return true;
-}
-
-- (void)copyImageData:(NSData*)data toPixelBuffer:(CVPixelBufferRef*)pixelBuffer {
-  CVPixelBufferLockBaseAddress(*pixelBuffer, 0);
-
-  CIImage* image = [CIImage imageWithData:data];
-  [self.imageContext render:image toCVPixelBuffer:*pixelBuffer];
-
-  CVPixelBufferUnlockBaseAddress(*pixelBuffer, 0);
-}
-
 @end
 
 // MARK: -
 
-@interface FlutterSocketConnectionFrameReader () <NSStreamDelegate>
+@interface FlutterSocketConnectionFrameReader () <NSStreamDelegate , FrameParserDelegate>
 
-@property(nonatomic, strong) FlutterSocketConnection* connection;
-@property(nonatomic, strong) Message* message;
+@property(nonatomic, strong) FlutterSocketConnection *videoConnection;
+@property(nonatomic, strong) FlutterSocketConnection *audioConnection;
+@property(nonatomic, strong) FrameParser *videoParser;
+@property(nonatomic, strong) FrameParser *audioParser;
+@property(nonatomic, strong) CIContext *imageContext;
+@property(nonatomic, strong) NSDate *contextCreationTime;
+@property(nonatomic, assign) NSTimeInterval contextLifetime;
 
 @end
 
 @implementation FlutterSocketConnectionFrameReader {
   mach_timebase_info_data_t _timebaseInfo;
-  NSInteger _readLength;
   int64_t _startTimeStampNs;
 }
 
@@ -143,57 +126,170 @@ const NSUInteger kMaxReadLength = 10 * 1024;
   self = [super initWithDelegate:delegate];
   if (self) {
     mach_timebase_info(&_timebaseInfo);
+    _contextLifetime = 120.0;
+    [self createImageContext];
   }
 
   return self;
 }
 
-- (void)startCaptureWithConnection:(FlutterSocketConnection*)connection {
-  _startTimeStampNs = -1;
+- (void)createImageContext {
+    NSDictionary *options = @{
+        kCIContextCacheIntermediates: @(NO),
+        kCIContextUseSoftwareRenderer: @(NO)
+    };
+    _imageContext = [[CIContext alloc] initWithOptions:options];
+    _contextCreationTime = [NSDate date];
+}
 
-  self.connection = connection;
-  self.message = nil;
+- (CIContext *)getImageContext {
+    if (_contextCreationTime &&
+        [[NSDate date] timeIntervalSinceDate:_contextCreationTime] > _contextLifetime) {
+        _imageContext = nil;
+        _contextCreationTime = nil;
+        [self createImageContext];
+    }
+    return _imageContext;
+}
 
-  [self.connection openWithStreamDelegate:self];
+- (void)startCaptureWithVideoConnection:(FlutterSocketConnection *)videoConnection
+                        audioConnection:(FlutterSocketConnection *)audioConnection {
+    _startTimeStampNs = -1;
+    
+    self.videoConnection = videoConnection;
+        self.videoParser = [[FrameParser alloc] init];
+        self.videoParser.delegate = self;
+        [self.videoConnection openWithStreamDelegate:self];
+
+        self.audioConnection = audioConnection;
+        self.audioParser = [[FrameParser alloc] init];
+        self.audioParser.delegate = self;
+        [self.audioConnection openWithStreamDelegate:self];
 }
 
 - (void)stopCapture {
-  [self.connection close];
+    [self.videoConnection close];
+    [self.audioConnection close];
+    self.videoConnection = nil;
+    self.audioConnection = nil;
+
+    _imageContext = nil;
+    _contextCreationTime = nil;
 }
+
+// MARK: FrameParserDelegate
+
+- (void)parser:(FrameParser *)parser didReadFrame:(NSData *)frame withHeaders:(NSDictionary *)headers {
+    NSString *contentType = headers[@"Content-Type"];
+
+    if (parser == self.videoParser) {
+        [self handleVideoFrame:frame withHeaders:headers];
+    } else if (parser == self.audioParser) {
+        [self handleAudioFrame:frame withHeaders:headers];
+    }
+}
+
 
 // MARK: Private Methods
 
-- (void)readBytesFromStream:(NSInputStream*)stream {
-  if (!stream.hasBytesAvailable) {
-    return;
-  }
+- (void)handleAudioFrame:(NSData *)frame withHeaders:(NSDictionary *)headers {
+    NSString *metadataString = headers[@"Buffer-Metadata"];
+    if (!metadataString) {
+        return;
+    }
 
-  if (!self.message) {
-    self.message = [[Message alloc] init];
-    _readLength = kMaxReadLength;
+    NSData *metadataJSON = [metadataString dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *error;
+    NSDictionary *metadata = [NSJSONSerialization JSONObjectWithData:metadataJSON options:0 error:&error];
+    if (!metadata) {
+        return;
+    }
 
-    __weak __typeof__(self) weakSelf = self;
-    self.message.didComplete = ^(BOOL success, Message* message) {
-      if (success) {
-        [weakSelf didCaptureVideoFrame:message.imageBuffer
-                       withOrientation:message.imageOrientation];
-      }
+    NSArray *descArray = metadata[@"description"];
 
-      weakSelf.message = nil;
-    };
-  }
+    AudioStreamBasicDescription asbd = {0};
+    asbd.mSampleRate = [descArray[0] doubleValue];
+    asbd.mFormatID = [descArray[1] unsignedIntValue];
+    asbd.mFormatFlags = [descArray[2] unsignedIntValue];
+    asbd.mBytesPerPacket = [descArray[3] unsignedIntValue];
+    asbd.mFramesPerPacket = [descArray[4] unsignedIntValue];
+    asbd.mBytesPerFrame = [descArray[5] unsignedIntValue];
+    asbd.mChannelsPerFrame = [descArray[6] unsignedIntValue];
+    asbd.mBitsPerChannel = [descArray[7] unsignedIntValue];
+    
+    [[CustomAudioDevice sharedInstance] handleBroadcastAudioData:frame withDescription:asbd];
+}
 
-  uint8_t buffer[_readLength];
-  NSInteger numberOfBytesRead = [stream read:buffer maxLength:_readLength];
-  if (numberOfBytesRead < 0) {
-    NSLog(@"error reading bytes from stream");
-    return;
-  }
+- (void)handleVideoFrame:(NSData *)frame withHeaders:(NSDictionary *)headers {
+    if (!frame || frame.length == 0) {
+        return;
+    }
+    
+    if (!headers || !headers[@"Buffer-Width"] || !headers[@"Buffer-Height"]) {
+        return;
+    }
+    
+    size_t width = [headers[@"Buffer-Width"] integerValue];
+    size_t height = [headers[@"Buffer-Height"] integerValue];
+    int imageOrientation = [headers[@"Buffer-Orientation"] intValue];
 
-  _readLength = [self.message appendBytes:buffer length:numberOfBytesRead];
-  if (_readLength == -1 || _readLength > kMaxReadLength) {
-    _readLength = kMaxReadLength;
-  }
+    if (width == 0 || height == 0 || width > 4096 || height > 4096) {
+        return;
+    }
+
+    CVImageBufferRef imageBuffer = NULL;
+    CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, NULL, &imageBuffer);
+    if (status != kCVReturnSuccess) {
+        return;
+    }
+
+    CVPixelBufferLockBaseAddress(imageBuffer, 0);
+    
+    @try {
+        CIImage *image = [CIImage imageWithData:frame];
+        if (!image) {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+            CVPixelBufferRelease(imageBuffer);
+            return;
+        }
+        
+        CIContext *context = [self getImageContext];
+        if (!context) {
+            CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+            CVPixelBufferRelease(imageBuffer);
+            return;
+        }
+        
+        [context render:image toCVPixelBuffer:imageBuffer];
+    } @catch (NSException *exception) {
+        CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+        CVPixelBufferRelease(imageBuffer);
+        return;
+    }
+    
+    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+
+    [self didCaptureVideoFrame:imageBuffer withOrientation:imageOrientation];
+
+    CVPixelBufferRelease(imageBuffer);
+}
+
+- (void)readBytesFromStream:(NSInputStream *)stream toParser:(FrameParser *)parser {
+    if (!stream.hasBytesAvailable) {
+        return;
+    }
+
+    uint8_t buffer[kMaxReadLength];
+    NSInteger numberOfBytesRead = [stream read:buffer maxLength:kMaxReadLength];
+    
+    if (numberOfBytesRead < 0) {
+        return;
+    }
+    
+    if (numberOfBytesRead > 0) {
+        NSData *data = [NSData dataWithBytes:buffer length:numberOfBytesRead];
+        [parser appendData:data];
+    }
 }
 
 - (void)didCaptureVideoFrame:(CVPixelBufferRef)pixelBuffer
@@ -238,15 +334,23 @@ const NSUInteger kMaxReadLength = 10 * 1024;
 - (void)stream:(NSStream*)aStream handleEvent:(NSStreamEvent)eventCode {
   switch (eventCode) {
     case NSStreamEventOpenCompleted:
-      NSLog(@"server stream open completed");
       break;
-    case NSStreamEventHasBytesAvailable:
-      [self readBytesFromStream:(NSInputStream*)aStream];
-      break;
-    case NSStreamEventEndEncountered:
-      NSLog(@"server stream end encountered");
-      [self stopCapture];
-      break;
+      case NSStreamEventHasBytesAvailable: {
+          NSInputStream *inputStream = (NSInputStream *)aStream;
+          if (inputStream == [self.videoConnection inputStream]) {
+              [self readBytesFromStream:inputStream toParser:self.videoParser];
+          } else if (inputStream == [self.audioConnection inputStream]) {
+              [self readBytesFromStream:inputStream toParser:self.audioParser];
+          }
+          break;
+      }
+      case NSStreamEventEndEncountered:
+         if (aStream == [self.videoConnection inputStream] ||
+             aStream == [self.videoConnection outputStream]) {
+             [self stopCapture];
+             [self.eventsDelegate capturerDidEnd:self];
+         }
+         break;
     case NSStreamEventErrorOccurred:
       NSLog(@"server stream error encountered: %@", aStream.streamError.localizedDescription);
       break;
@@ -257,3 +361,4 @@ const NSUInteger kMaxReadLength = 10 * 1024;
 }
 
 @end
+

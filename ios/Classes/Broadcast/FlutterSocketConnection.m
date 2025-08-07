@@ -16,9 +16,8 @@
 @property(nonatomic, strong) dispatch_source_t listeningSource;
 
 @property(nonatomic, strong) NSThread* networkThread;
-
-@property(nonatomic, strong) NSInputStream* inputStream;
-@property(nonatomic, strong) NSOutputStream* outputStream;
+@property(nonatomic, strong, readwrite) NSInputStream *inputStream;
+@property(nonatomic, strong, readwrite) NSOutputStream *outputStream;
 
 @end
 
@@ -81,6 +80,8 @@
 
     [self.inputStream open];
     [self.outputStream open];
+      
+    dispatch_source_cancel(self.listeningSource);
   });
 
   self.listeningSource = listeningSource;
@@ -88,25 +89,31 @@
 }
 
 - (void)close {
-  if (![self.networkThread isExecuting]) {
-    return;
-  }
+    if (self.networkThread && self.networkThread.isExecuting) {
+        [self performSelector:@selector(unscheduleStreams) onThread:self.networkThread withObject:nil waitUntilDone:true];
+    }
 
-  [self performSelector:@selector(unscheduleStreams)
-               onThread:self.networkThread
-             withObject:nil
-          waitUntilDone:true];
+    if (self.inputStream) {
+        self.inputStream.delegate = nil;
+        [self.inputStream close];
+    }
 
-  self.inputStream.delegate = nil;
-  self.outputStream.delegate = nil;
+    if (self.outputStream) {
+        self.outputStream.delegate = nil;
+        [self.outputStream close];
+    }
 
-  [self.inputStream close];
-  [self.outputStream close];
+    if (self.networkThread) {
+        [self.networkThread cancel];
+    }
 
-  [self.networkThread cancel];
+    if (self.listeningSource) {
+        dispatch_source_cancel(self.listeningSource);
+    }
 
-  dispatch_source_cancel(self.listeningSource);
-  close(self.serverSocket);
+    if (self.serverSocket >= 0) {
+        close(self.serverSocket);
+    }
 }
 
 // MARK: - Private Methods

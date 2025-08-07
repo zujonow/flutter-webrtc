@@ -134,6 +134,8 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
 
   public AudioPlaybackCaptureController audioPlaybackCaptureController;
 
+  private Boolean enableAudio;
+
   MethodCallHandlerImpl(Context context, BinaryMessenger messenger, TextureRegistry textureRegistry) {
     this.context = context;
     this.textures = textureRegistry;
@@ -751,13 +753,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "getDisplayMedia": {
         Map<String, Object> constraints = call.argument("constraints");
         ConstraintsMap constraintsMap = new ConstraintsMap(constraints);
-        boolean screenShareAudio = false;
-        if (constraintsMap.hasKey("screenShareAudio") && constraintsMap.getType("screenShareAudio") == ObjectType.Boolean) {
-                      screenShareAudio = constraintsMap.getBoolean("screenShareAudio");
-            // Remove the screenShareAudio flag from constraints to avoid interfering with WebRTC
-            constraintsMap.delete("screenShareAudio");
-        }
-        getDisplayMedia(constraintsMap, result, screenShareAudio);
+        getDisplayMedia(constraintsMap, result, enableAudio);
         break;
       }
       case "startRecordToFile":
@@ -1035,6 +1031,12 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
           params.putString("state", Utils.connectionStateString(pc.connectionState()));
           result.success(params.toMap());
         }
+        break;
+      }
+      case "setScreenAudio": {
+        enableAudio = call.argument("enableAudio");
+        Log.d(TAG, "setScreenAudio: " + enableAudio);
+        result.success(true);
         break;
       }
       default:
