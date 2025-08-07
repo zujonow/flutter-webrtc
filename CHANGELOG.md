@@ -1,5 +1,9 @@
 # Changelog
 
+[0.0.11] - 2025.08.08
+- Added screen share audio support for both Android and iOS.
+- Updated the Android version.
+
 [0.0.10] - 2025.05.23
 - Fixed an issue of deadlock happening when creating a frame cryptor on iOS/macOS.
 
