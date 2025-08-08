@@ -239,9 +239,6 @@ public class GetUserMediaImpl {
     }
 
     GetUserMediaImpl(StateProvider stateProvider, Context applicationContext, AudioPlaybackCaptureController audioPlaybackCaptureController) {
-        if (Build.VERSION.SDK_INT < minAPILevel) {
-            throw new RuntimeException("GetUserMediaImpl requires API level " + minAPILevel + " or higher");
-        }
         this.stateProvider = stateProvider;
         this.applicationContext = applicationContext;
         this.audioPlaybackCaptureController = audioPlaybackCaptureController;
@@ -579,7 +576,7 @@ public class GetUserMediaImpl {
 
             stateProvider.putLocalTrack(id, displayLocalVideoTrack);
 
-            // Track parameters setup
+
             ConstraintsMap track_ = new ConstraintsMap();
             String kind = displayTrack.kind();
 
@@ -612,13 +609,12 @@ public class GetUserMediaImpl {
                 MediaProjectionManager projectionManager = (MediaProjectionManager) applicationContext.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
                 MediaProjection mediaProjection = projectionManager.getMediaProjection(Activity.RESULT_OK, mediaProjectionData);
                 
+                //  Start media Projection
                 if (mediaProjection != null) {
                     audioPlaybackCaptureController.initialize(mediaProjection , screenShareAudio);
                     audioPlaybackCaptureController.startCapture();
-                    Log.d("SystemAudioMixer", "System audio capture started successfully");
-                } else {
-                    Log.e("SystemAudioMixer", "Failed to create MediaProjection from Intent data");
                 }
+                
             } catch (Exception e) {
                 Log.e("SystemAudioMixer", "Error starting system audio capture", e);
             }

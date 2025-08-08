@@ -154,7 +154,6 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
 
             // 8) Flip the flag so onBuffer() begins mixing system audio
             isCapturing = true;
-            Log.d(TAG, "Audio capture started: mixing mic + system audio");
 
         } catch (Exception e) {
             Log.e(TAG, "Error starting audio capture", e);
@@ -180,12 +179,9 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
             }
             audioRecord = null;
         }
-
-        Log.d(TAG, "Audio capture stopped");
     }
 
     public void dispose() {
-        Log.d(TAG, "Disposing AudioPlaybackCaptureController");
         stopCapture();
         mediaProjection = null;
     }

@@ -178,9 +178,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     PeerConnectionFactory.initialize(
         InitializationOptions.builder(context)
             .setEnableInternalTracer(true)
-            .createInitializationOptions());
-
-    Log.d("SystemAudioMixer", "PeerConnectionFactory initialized");
+            .createInitializationOptions());    
 
     frameCryptor = new FlutterRTCFrameCryptor(this);
 
@@ -227,25 +225,18 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     if (audioAttributes != null) {
       audioDeviceModuleBuilder.setAudioAttributes(audioAttributes);
     }
-
-    // 🔧 Create system audio controller with proper ADM reference
     audioPlaybackCaptureController = new AudioPlaybackCaptureController(context, null);
     
-    // 🔧 Set the audio buffer callback through the builder
+    // Set the audio buffer callback through the builder
     audioDeviceModuleBuilder.setAudioBufferCallback(audioPlaybackCaptureController);
     
-    // ✅ Create ADM with the callback already set
+    // Create ADM with the callback already set
     audioDeviceModule = audioDeviceModuleBuilder.createAudioDeviceModule();
-    
-    // 🔧 Now update the controller with the proper ADM reference
-    // audioPlaybackCaptureController.updateAudioDeviceModule((JavaAudioDeviceModule) audioDeviceModule);
-    // Log.d("SystemAudioMixer", "AudioPlaybackCaptureController updated with ADM reference");
     
     if (!bypassVoiceProcessing && JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()) {
         audioDeviceModule.setNoiseSuppressorEnabled(true);
     }
     
-    // ✅ Now create GetUserMediaImpl with the properly initialized controller
     getUserMediaImpl = new GetUserMediaImpl(this, context, audioPlaybackCaptureController);
     getUserMediaImpl.audioDeviceModule = (JavaAudioDeviceModule) audioDeviceModule;
 
@@ -1035,7 +1026,6 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       }
       case "setScreenAudio": {
         enableAudio = call.argument("enableAudio");
-        Log.d(TAG, "setScreenAudio: " + enableAudio);
         result.success(true);
         break;
       }

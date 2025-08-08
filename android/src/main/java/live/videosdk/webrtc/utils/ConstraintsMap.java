@@ -129,10 +129,6 @@ public class ConstraintsMap {
         return (ArrayList<Object>) mMap.get(name);
     }
 
-    public void delete(String key) {
-        mMap.remove(key);
-    }
-
     @Override
     public String toString() {
         return "ConstraintsMap{" +
