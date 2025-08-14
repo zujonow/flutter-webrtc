@@ -19,9 +19,15 @@
 #import "LocalTrack.h"
 #import "LocalAudioTrack.h"
 #import "LocalVideoTrack.h"
+#import "CustomAudioDevice.h"
+#import "AudioConfig.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wprotocol"
+
+@interface FlutterWebRTCPlugin()
+@property (nonatomic, strong) CustomAudioDevice *customAudioDevice;
+@end
 
 @interface VideoEncoderFactory : RTCDefaultVideoEncoderFactory
 @end
@@ -120,6 +126,7 @@ static FlutterWebRTCPlugin *sharedSingleton;
 @synthesize eventSink = _eventSink;
 @synthesize preferredInput = _preferredInput;
 @synthesize audioManager = _audioManager;
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   FlutterMethodChannel* channel =
       [FlutterMethodChannel methodChannelWithName:@"FlutterWebRTC.Method"
@@ -245,18 +252,30 @@ static FlutterWebRTCPlugin *sharedSingleton;
 bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     // RTCSetMinDebugLogLevel(RTCLoggingSeverityVerbose);
     if (!_peerConnectionFactory) {
+        self.customAudioDevice = [CustomAudioDevice sharedInstance];
+        id<RTCAudioDevice> audioDevice = self.customAudioDevice;
         VideoDecoderFactory* decoderFactory = [[VideoDecoderFactory alloc] init];
         VideoEncoderFactory* encoderFactory = [[VideoEncoderFactory alloc] init];
-
-        VideoEncoderFactorySimulcast* simulcastFactory =
-            [[VideoEncoderFactorySimulcast alloc] initWithPrimary:encoderFactory fallback:encoderFactory];
+        
+//        VideoEncoderFactorySimulcast* simulcastFactory =
+//        [[VideoEncoderFactorySimulcast alloc] initWithPrimary:encoderFactory fallback:encoderFactory];
+        
         _peerConnectionFactory =
-            [[RTCPeerConnectionFactory alloc] initWithBypassVoiceProcessing:bypassVoiceProcessing
-                                                             encoderFactory:simulcastFactory
-                                                             decoderFactory:decoderFactory
-                                                      audioProcessingModule:_audioManager.audioProcessingModule];
+        [[RTCPeerConnectionFactory alloc] initWithEncoderFactory:encoderFactory decoderFactory:decoderFactory audioDevice:audioDevice];
 
         RTCPeerConnectionFactoryOptions *options = [[RTCPeerConnectionFactoryOptions alloc] init];
+        
+        RTCAudioSessionConfiguration *audioConfig = [RTCAudioSessionConfiguration new];
+        audioConfig.category = AVAudioSessionCategoryPlayAndRecord;
+        audioConfig.categoryOptions = AVAudioSessionCategoryOptionAllowAirPlay |
+                                     AVAudioSessionCategoryOptionAllowBluetooth |
+                                     AVAudioSessionCategoryOptionAllowBluetoothA2DP |
+                                     AVAudioSessionCategoryOptionDefaultToSpeaker |
+                                     AVAudioSessionCategoryOptionAllowAirPlay |
+                                     AVAudioSessionCategoryOptionMixWithOthers;
+        audioConfig.mode = AVAudioSessionModeVideoChat;
+        [RTCAudioSessionConfiguration setWebRTCConfiguration:audioConfig];
+        
         for (NSString* adapter in networkIgnoreMask)
         {
             if ([@"adapterTypeEthernet" isEqualToString:adapter]) {
@@ -373,7 +392,22 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
                 message:[NSString stringWithFormat:@"Error: peerConnection not found!"]
                 details:nil]);
     }
-  } else if ([@"addStream" isEqualToString:call.method]) {
+  }
+  
+  else if ([@"setScreenAudio" isEqualToString:call.method]) {
+      NSDictionary* argsMap = call.arguments;
+      NSNumber *enableAudio = argsMap[@"enableAudio"];
+      
+      BOOL enableAudioBool = [enableAudio boolValue];
+    
+      NSLog(@"Changing screen share audio to: %@", enableAudioBool ? @"Enabled" : @"Disabled");
+    
+      [[CustomAudioDevice sharedInstance] setScreenShareAudioEnabled:enableAudioBool];
+
+      result(nil);
+  }
+  
+  else if ([@"addStream" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
 
     NSString* streamId = ((NSString*)argsMap[@"streamId"]);
@@ -1611,6 +1645,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     [peerConnection close];
   }
   [_peerConnections removeAllObjects];
+  self.customAudioDevice = nil;
   _peerConnectionFactory = nil;
 }
 

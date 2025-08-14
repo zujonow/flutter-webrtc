@@ -179,4 +179,11 @@ class Helper {
       throw Exception('requestCapturePermission only support for Android');
     }
   }
+
+  static Future<void> setScreenShareAudio(bool enableAudio) async {
+    if (WebRTC.platformIsMobile) {
+      print('insdie the webrtc: $enableAudio');
+      await WebRTC.invokeMethod('setScreenAudio', {'enableAudio': enableAudio});
+    }
+  }
 }

@@ -39,7 +39,6 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
   @override
   int get videoHeight => value.height.toInt();
 
-
   @override
   int? get textureId => _textureId;
 

@@ -11,6 +11,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface FlutterSocketConnection : NSObject
 
+@property(nonatomic, readonly) NSInputStream *inputStream;
+@property(nonatomic, readonly) NSOutputStream *outputStream;
+
 - (instancetype)initWithFilePath:(nonnull NSString*)filePath;
 - (void)openWithStreamDelegate:(id<NSStreamDelegate>)streamDelegate;
 - (void)close;
