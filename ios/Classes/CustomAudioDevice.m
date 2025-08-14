@@ -8,7 +8,6 @@
 #import "CustomAudioDevice.h"
 #import <AVFoundation/AVFoundation.h>
 #import "WebRTC/WebRTC.h"
-#import "AudioConfig.h"
 
 
 const int kMaxRingBufferSize = 16384;
@@ -92,6 +91,8 @@ const int kMaxRingBufferSize = 16384;
         _backgroundMaintenanceLock = [[NSLock alloc] init];
         _shouldStopBackgroundMaintenance = NO;
         _isPlayoutGraphConnected = NO;
+        
+        _enableScreenShareAudio = NO;
         
         [self subscribeToNotifications];
     }
@@ -192,6 +193,32 @@ const int kMaxRingBufferSize = 16384;
         }
     });
 }
+
+- (void)setScreenShareAudioEnabled:(BOOL)enabled {
+    NSLog(@"Changing screen share audio to: %@", enabled ? @"Enabled" : @"Disabled");
+    
+    NSLog(@"Current screen share audio state: %@", _enableScreenShareAudio ? @"Enabled" : @"Disabled");
+    
+    if (_enableScreenShareAudio != enabled) {
+
+        _enableScreenShareAudio = enabled;
+
+        NSLog(@"New screen share audio state: %@", _enableScreenShareAudio ? @"Enabled" : @"Disabled");
+
+        NSLog(@"Setting up audio session...");
+        [self setupAudioSession];
+        
+        NSLog(@"Updating audio engine...");
+        [self updateAudioEngine];
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"Final state after screen share change:");
+        });
+    } else {
+        NSLog(@"No state change needed, screen share audio already in desired state.");
+    }
+}
+
 
 - (void)transferSmoothedDataToRingBuffer {
     [_smoothingLock lock];
@@ -317,11 +344,17 @@ const int kMaxRingBufferSize = 16384;
         RTCAudioSessionConfiguration *config = [[RTCAudioSessionConfiguration alloc] init];
         config.category = AVAudioSessionCategoryPlayAndRecord;
         
-        config.categoryOptions = AVAudioSessionCategoryOptionMixWithOthers |
-                               AVAudioSessionCategoryOptionDefaultToSpeaker |
-                               AVAudioSessionCategoryOptionAllowBluetooth |
-                               AVAudioSessionCategoryOptionAllowBluetoothA2DP |
-                               AVAudioSessionCategoryOptionInterruptSpokenAudioAndMixWithOthers;
+        if (_enableScreenShareAudio) {
+            config.categoryOptions = AVAudioSessionCategoryOptionMixWithOthers |
+                                     AVAudioSessionCategoryOptionDefaultToSpeaker |
+                                     AVAudioSessionCategoryOptionAllowBluetooth |
+                                     AVAudioSessionCategoryOptionAllowBluetoothA2DP |
+                                     AVAudioSessionCategoryOptionInterruptSpokenAudioAndMixWithOthers;
+        } else {
+            config.categoryOptions = AVAudioSessionCategoryOptionDefaultToSpeaker |
+                                     AVAudioSessionCategoryOptionAllowBluetooth |
+                                     AVAudioSessionCategoryOptionAllowBluetoothA2DP;
+        }
         
         config.mode = AVAudioSessionModeVideoChat;
         
@@ -350,7 +383,7 @@ const int kMaxRingBufferSize = 16384;
     [_engine attachNode:_recordingMixerNode];
 
     // Conditionally create and attach screen share audio nodes
-    if (gEnableScreenAudio) {
+    if (_enableScreenShareAudio) {
         _screenShareGainNode = [[AVAudioUnitEQ alloc] initWithNumberOfBands:1];
         _screenShareAudioSourceNode = [[AVAudioSourceNode alloc] initWithFormat:_clientFormat
                                                                     renderBlock:[self screenShareRenderBlock]];
@@ -395,7 +428,7 @@ const int kMaxRingBufferSize = 16384;
 
         @try {
             [_engine connect:micNode to:_recordingMixerNode format:micFormat];
-            if (gEnableScreenAudio && _screenShareAudioSourceNode && _screenShareGainNode) {
+            if (_enableScreenShareAudio && _screenShareAudioSourceNode && _screenShareGainNode) {
                 [_engine connect:_screenShareAudioSourceNode to:_screenShareGainNode format:_clientFormat];
                 [_engine connect:_screenShareGainNode to:_recordingMixerNode format:_clientFormat];
             }
@@ -412,8 +445,10 @@ const int kMaxRingBufferSize = 16384;
         @try {
             [_engine disconnectNodeOutput:_recordingMixerNode];
             [_engine disconnectNodeInput:_recordingMixerNode];
-            [_engine disconnectNodeOutput:_screenShareGainNode];
-            [_engine disconnectNodeOutput:_screenShareAudioSourceNode];
+            if (_enableScreenShareAudio) {
+                [_engine disconnectNodeOutput:_screenShareGainNode];
+                [_engine disconnectNodeOutput:_screenShareAudioSourceNode];
+            }
         } @catch (NSException *exception) {
         }
         

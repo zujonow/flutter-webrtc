@@ -16,6 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)sharedInstance;
 
 - (void)handleBroadcastAudioData:(NSData *)audioData withDescription:(AudioStreamBasicDescription)description;
+- (void)setScreenShareAudioEnabled:(BOOL)enabled;
 
 @end
 

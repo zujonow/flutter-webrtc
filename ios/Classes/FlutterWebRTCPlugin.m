@@ -395,11 +395,16 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
   }
   
   else if ([@"setScreenAudio" isEqualToString:call.method]) {
-    NSDictionary* argsMap = call.arguments;
-    NSNumber *enableAudio = argsMap[@"enableAudio"];
+      NSDictionary* argsMap = call.arguments;
+      NSNumber *enableAudio = argsMap[@"enableAudio"];
       
-      gEnableScreenAudio = [enableAudio boolValue];
-    result(nil);
+      BOOL enableAudioBool = [enableAudio boolValue];
+    
+      NSLog(@"Changing screen share audio to: %@", enableAudioBool ? @"Enabled" : @"Disabled");
+    
+      [[CustomAudioDevice sharedInstance] setScreenShareAudioEnabled:enableAudioBool];
+
+      result(nil);
   }
   
   else if ([@"addStream" isEqualToString:call.method]) {
