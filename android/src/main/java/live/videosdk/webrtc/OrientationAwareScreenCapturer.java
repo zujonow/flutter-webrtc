@@ -139,8 +139,8 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
                 if (mediaProjection != null) {
                     // Unregister the callback before stopping, otherwise the callback recursively
                     // calls this method.
-                    mediaProjection.unregisterCallback(mediaProjectionCallback);
                     mediaProjection.stop();
+//                    mediaProjection.unregisterCallback(mediaProjectionCallback);
                     mediaProjection = null;
                 }
             }
