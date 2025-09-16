@@ -4,6 +4,7 @@
 - Introduced screen share audio support for Android devices.
 - Updated the Android version.
 - Enabled background camera access on iOS for Picture-in-Picture (PiP) mode.
+- Replaced deprecated `onSurfaceDestroyed` in `SurfaceTextureRenderer` with `onSurfaceCleanup`.
 
 [0.0.10] - 2025.05.23
 - Fixed an issue of deadlock happening when creating a frame cryptor on iOS/macOS.
