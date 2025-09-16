@@ -527,7 +527,7 @@ public class GetUserMediaImpl {
                         Log.d(TAG, "onStop: called");
                         // Stop system audio capture when the user stops screen sharing
                         if (audioPlaybackCaptureController != null) {
-                            audioPlaybackCaptureController.stopCapture();
+                            audioPlaybackCaptureController.dispose();
                         }
                     }
                 });
@@ -606,10 +606,7 @@ public class GetUserMediaImpl {
         if (audioPlaybackCaptureController != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 
             try {
-                // Create MediaProjection from the Intent data
-                MediaProjectionManager projectionManager = (MediaProjectionManager) applicationContext.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-                MediaProjection mediaProjection = projectionManager.getMediaProjection(Activity.RESULT_OK, mediaProjectionData);
-                
+                MediaProjection mediaProjection = ((OrientationAwareScreenCapturer) videoCapturer).getMediaProjection();
                 //  Start media Projection
                 if (mediaProjection != null) {
                     audioPlaybackCaptureController.initialize(mediaProjection , screenShareAudio);

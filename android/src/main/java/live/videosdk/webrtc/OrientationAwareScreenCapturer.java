@@ -83,6 +83,11 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
             throw new RuntimeException("capturer is disposed.");
         }
     }
+
+    public MediaProjection getMediaProjection(){
+        return mediaProjection;
+    }
+
     public synchronized void initialize(final SurfaceTextureHelper surfaceTextureHelper,
                                         final Context applicationContext, final CapturerObserver capturerObserver) {
         checkNotDisposed();

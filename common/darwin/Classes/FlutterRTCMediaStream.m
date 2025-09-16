@@ -13,7 +13,7 @@
 #import "VideoProcessingAdapter.h"
 
 // Global AVCaptureSession for multitasking camera access
-static AVCaptureSession *globalCaptureSession = nil;
+static AVCaptureSession *session;
 
 @implementation CustomCapturerDelegate
 
@@ -579,14 +579,12 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     RTCVideoTrack* videoTrack = [self.peerConnectionFactory videoTrackWithSource:videoSource
                                                                          trackId:trackUUID];
 
-    AVCaptureSession *session = self.videoCapturer.captureSession;
+    session = self.videoCapturer.captureSession;
 
     if (!session) {
         NSLog(@"Capture session is null.");
       return;
     }
-
-    globalCaptureSession = session;
 
     #if TARGET_OS_IPHONE
       if (@available(iOS 16.0, *)) {
@@ -655,11 +653,11 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     }
     [self.localStreams removeObjectForKey:stream.streamId];
     
-    if (globalCaptureSession) {
-      if (globalCaptureSession.isRunning) {
-        [globalCaptureSession stopRunning];
+    if (session) {
+      if (session.isRunning) {
+        [session stopRunning];
       }
-      globalCaptureSession = nil;
+      session = nil;
     }
   }
 }
