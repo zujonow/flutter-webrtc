@@ -52,6 +52,8 @@ import live.videosdk.webrtc.utils.ObjectType;
 import live.videosdk.webrtc.utils.PermissionUtils;
 import live.videosdk.webrtc.video.LocalVideoTrack;
 import live.videosdk.webrtc.video.VideoCapturerInfo;
+import live.videosdk.webrtc.audio.AudioPlaybackCaptureController;
+
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
 import org.webrtc.Camera1Capturer;
@@ -121,6 +123,9 @@ public class GetUserMediaImpl {
     private AudioDeviceInfo preferredInput = null;
     private boolean isTorchOn;
     private Intent mediaProjectionData = null;
+
+    private AudioPlaybackCaptureController audioPlaybackCaptureController;
+
 
     public void screenRequestPermissions(ResultReceiver resultReceiver) {
         mediaProjectionData = null;
@@ -233,9 +238,10 @@ public class GetUserMediaImpl {
         }
     }
 
-    GetUserMediaImpl(StateProvider stateProvider, Context applicationContext) {
+    GetUserMediaImpl(StateProvider stateProvider, Context applicationContext, AudioPlaybackCaptureController audioPlaybackCaptureController) {
         this.stateProvider = stateProvider;
         this.applicationContext = applicationContext;
+        this.audioPlaybackCaptureController = audioPlaybackCaptureController;
     }
 
     static private void resultError(String method, String error, Result result) {
@@ -488,7 +494,7 @@ public class GetUserMediaImpl {
     }
 
     void getDisplayMedia(
-            final ConstraintsMap constraints, final Result result, final MediaStream mediaStream) {
+            final ConstraintsMap constraints, final Result result, final MediaStream mediaStream, final boolean screenShareAudio) {
         if (mediaProjectionData == null) {
             screenRequestPermissions(
                     new ResultReceiver(new Handler(Looper.getMainLooper())) {
@@ -501,30 +507,31 @@ public class GetUserMediaImpl {
                                 resultError("screenRequestPermissions", "User didn't give permission to capture the screen.", result);
                                 return;
                             }
-                            getDisplayMedia(result, mediaStream, mediaProjectionData);
+                            getDisplayMedia(result, mediaStream, mediaProjectionData,screenShareAudio);
                         }
                     });
         } else {
-            getDisplayMedia(result, mediaStream, mediaProjectionData);
+            getDisplayMedia(result, mediaStream, mediaProjectionData, screenShareAudio);
         }
     }
 
-    private void getDisplayMedia(final Result result, final MediaStream mediaStream, final Intent mediaProjectionData) {
+    private void getDisplayMedia(final Result result, final MediaStream mediaStream, final Intent mediaProjectionData ,final boolean screenShareAudio ) {
         /* Create ScreenCapture */
         VideoTrack displayTrack = null;
-        VideoCapturer videoCapturer = null;
-        videoCapturer =
-                new OrientationAwareScreenCapturer(
-                        mediaProjectionData,
-                        new MediaProjection.Callback() {
-                            @Override
-                            public void onStop() {
-                                super.onStop();
-                                // After Huawei P30 and Android 10 version test, the onstop method is called, which will not affect the next process,
-                                // and there is no need to call the resulterror method
-                                //resultError("MediaProjection.Callback()", "User revoked permission to capture the screen.", result);
-                            }
-                        });
+        VideoCapturer videoCapturer = new OrientationAwareScreenCapturer(
+                mediaProjectionData,
+                new MediaProjection.Callback() {
+                    @Override
+                    public void onStop() {
+                        super.onStop();
+                        Log.d(TAG, "onStop: called");
+                        // Stop system audio capture when the user stops screen sharing
+                        if (audioPlaybackCaptureController != null) {
+                            audioPlaybackCaptureController.dispose();
+                        }
+                    }
+                });
+
         if (videoCapturer == null) {
             resultError("screenRequestPermissions", "GetDisplayMediaFailed, User revoked permission to capture the screen.", result);
             return;
@@ -594,6 +601,30 @@ public class GetUserMediaImpl {
         successResult.putArray("audioTracks", audioTracks.toArrayList());
         successResult.putArray("videoTracks", videoTracks.toArrayList());
         result.success(successResult.toMap());
+
+        // Start capturing system audio along with screen capture (Android 10+)
+        if (audioPlaybackCaptureController != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+
+            try {
+                MediaProjection mediaProjection = ((OrientationAwareScreenCapturer) videoCapturer).getMediaProjection();
+                //  Start media Projection
+                if (mediaProjection != null) {
+                    audioPlaybackCaptureController.initialize(mediaProjection , screenShareAudio);
+                    audioPlaybackCaptureController.startCapture();
+                }
+                
+            } catch (Exception e) {
+                Log.e("SystemAudioMixer", "Error starting system audio capture", e);
+            }
+        } else {
+            if (audioPlaybackCaptureController == null) {
+                Log.e("SystemAudioMixer", "System audio capture not supported: audioPlaybackCaptureController is null");
+            } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                Log.e("SystemAudioMixer", "System audio capture not supported: Android version " + Build.VERSION.SDK_INT + " < " + Build.VERSION_CODES.Q);
+            } else {
+                Log.e("SystemAudioMixer", "System audio capture not supported: unknown reason");
+            }
+        }
     }
 
     /**

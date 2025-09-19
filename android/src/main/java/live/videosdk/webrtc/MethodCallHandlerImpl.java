@@ -95,6 +95,7 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.view.TextureRegistry;
 import io.flutter.view.TextureRegistry.SurfaceTextureEntry;
+import live.videosdk.webrtc.audio.AudioPlaybackCaptureController;
 
 public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   static public final String TAG = "FlutterWebRTCPlugin";
@@ -130,6 +131,10 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   private CustomVideoDecoderFactory videoDecoderFactory;
 
   public AudioProcessingController audioProcessingController;
+
+  public AudioPlaybackCaptureController audioPlaybackCaptureController;
+
+  private Boolean enableAudio;
 
   MethodCallHandlerImpl(Context context, BinaryMessenger messenger, TextureRegistry textureRegistry) {
     this.context = context;
@@ -175,10 +180,6 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
             .setEnableInternalTracer(true)
             .createInitializationOptions());
 
-    getUserMediaImpl = new GetUserMediaImpl(this, context);
-
-    cameraUtils = new CameraUtils(getUserMediaImpl, activity);
-
     frameCryptor = new FlutterRTCFrameCryptor(this);
 
     AudioAttributes audioAttributes = null;
@@ -221,6 +222,26 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     audioDeviceModuleBuilder.setSamplesReadyCallback(recordSamplesReadyCallbackAdapter);
     audioDeviceModuleBuilder.setPlaybackSamplesReadyCallback(playbackSamplesReadyCallbackAdapter);
 
+    if (audioAttributes != null) {
+      audioDeviceModuleBuilder.setAudioAttributes(audioAttributes);
+    }
+    audioPlaybackCaptureController = new AudioPlaybackCaptureController(context, null);
+    
+    // Set the audio buffer callback through the builder
+    audioDeviceModuleBuilder.setAudioBufferCallback(audioPlaybackCaptureController);
+    
+    // Create ADM with the callback already set
+    audioDeviceModule = audioDeviceModuleBuilder.createAudioDeviceModule();
+    
+    if (!bypassVoiceProcessing && JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()) {
+        audioDeviceModule.setNoiseSuppressorEnabled(true);
+    }
+    
+    getUserMediaImpl = new GetUserMediaImpl(this, context, audioPlaybackCaptureController);
+    getUserMediaImpl.audioDeviceModule = (JavaAudioDeviceModule) audioDeviceModule;
+
+    cameraUtils = new CameraUtils(getUserMediaImpl, activity);
+
     recordSamplesReadyCallbackAdapter.addCallback(getUserMediaImpl.inputSamplesInterceptor);
 
     recordSamplesReadyCallbackAdapter.addCallback(new JavaAudioDeviceModule.SamplesReadyCallback() {
@@ -233,18 +254,6 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         }
       }
     });
-
-    if (audioAttributes != null) {
-      audioDeviceModuleBuilder.setAudioAttributes(audioAttributes);
-    }
-
-    audioDeviceModule = audioDeviceModuleBuilder.createAudioDeviceModule();
-    if (!bypassVoiceProcessing) {
-      if (JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()) {
-        audioDeviceModule.setNoiseSuppressorEnabled(true);
-      }
-    }
-    getUserMediaImpl.audioDeviceModule = (JavaAudioDeviceModule) audioDeviceModule;
 
     final Options options = new Options();
     options.networkIgnoreMask = networkIgnoreMask;
@@ -735,7 +744,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "getDisplayMedia": {
         Map<String, Object> constraints = call.argument("constraints");
         ConstraintsMap constraintsMap = new ConstraintsMap(constraints);
-        getDisplayMedia(constraintsMap, result);
+        getDisplayMedia(constraintsMap, result, enableAudio);
         break;
       }
       case "startRecordToFile":
@@ -1013,6 +1022,11 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
           params.putString("state", Utils.connectionStateString(pc.connectionState()));
           result.success(params.toMap());
         }
+        break;
+      }
+      case "setScreenAudio": {
+        enableAudio = call.argument("enableAudio");
+        result.success(true);
         break;
       }
       default:
@@ -1510,7 +1524,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     getUserMediaImpl.getUserMedia(constraints, result, mediaStream);
   }
 
-  public void getDisplayMedia(ConstraintsMap constraints, Result result) {
+  public void getDisplayMedia(ConstraintsMap constraints, Result result, boolean screenShareAudio) {
     String streamId = getNextStreamUUID();
     MediaStream mediaStream = mFactory.createLocalMediaStream(streamId);
 
@@ -1523,7 +1537,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       return;
     }
 
-    getUserMediaImpl.getDisplayMedia(constraints, result, mediaStream);
+    getUserMediaImpl.getDisplayMedia(constraints, result, mediaStream, screenShareAudio);
   }
 
   public void getSources(Result result) {

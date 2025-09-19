@@ -12,6 +12,9 @@
 #import "LocalAudioTrack.h"
 #import "VideoProcessingAdapter.h"
 
+// Global AVCaptureSession for multitasking camera access
+static AVCaptureSession *session;
+
 @implementation CustomCapturerDelegate
 
 - (instancetype)initWithVideoSource:(RTCVideoSource *)videoSource {
@@ -575,6 +578,30 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     NSString* trackUUID = [[NSUUID UUID] UUIDString];
     RTCVideoTrack* videoTrack = [self.peerConnectionFactory videoTrackWithSource:videoSource
                                                                          trackId:trackUUID];
+
+    session = self.videoCapturer.captureSession;
+
+    if (!session) {
+        NSLog(@"Capture session is null.");
+      return;
+    }
+
+    #if TARGET_OS_IPHONE
+      if (@available(iOS 16.0, *)) {
+          if ([session isMultitaskingCameraAccessSupported]) {
+              [session beginConfiguration];
+              [session setMultitaskingCameraAccessEnabled:YES];
+              [session commitConfiguration];
+          }else{
+              NSLog(@"Enable VOIP background mode for multitasking access.");
+          }
+      }else{
+          NSLog(@"Multitasking access requires iOS 16.0+.");
+      }
+    #else
+      NSLog(@"Multitasking camera access not supported on macOS.");
+    #endif
+
     LocalVideoTrack *localVideoTrack = [[LocalVideoTrack alloc] initWithTrack:videoTrack videoProcessing:videoProcessingAdapter];
       
     __weak RTCCameraVideoCapturer* capturer = self.videoCapturer;
@@ -625,6 +652,13 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
       [self.localTracks removeObjectForKey:track.trackId];
     }
     [self.localStreams removeObjectForKey:stream.streamId];
+    
+    if (session) {
+      if (session.isRunning) {
+        [session stopRunning];
+      }
+      session = nil;
+    }
   }
 }
 
