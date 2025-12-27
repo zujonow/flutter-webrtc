@@ -11,6 +11,11 @@
 #import "LocalVideoTrack.h"
 #import "LocalAudioTrack.h"
 #import "VideoProcessingAdapter.h"
+#if TARGET_OS_IPHONE
+#import "RTCCameraVideoCapturerImp.h"
+#endif
+
+
 
 // Global AVCaptureSession for multitasking camera access
 static AVCaptureSession *session;
@@ -54,6 +59,7 @@ static AVCaptureSession *session;
 
 
 @end
+
 
 @implementation RTCMediaStreamTrack (Flutter)
 
@@ -527,8 +533,216 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
       }
     }
   }
+#if TARGET_OS_IPHONE
 
   if (videoDevice) {
+    RTCVideoSource* videoSource = [self.peerConnectionFactory videoSource];
+   #if TARGET_OS_OSX
+    if (self.videoCapturer) {
+      [self.videoCapturer stopCapture];
+    }
+   #endif
+  
+  
+    NSDictionary *videoConstraints = constraints[@"video"];
+    NSNumber *widthNumber = videoConstraints[@"width"];
+    NSNumber *heightNumber = videoConstraints[@"height"];
+    NSNumber *frameRateNumber = videoConstraints[@"frameRate"];
+
+    int width = widthNumber.intValue;
+    int height = heightNumber.intValue;
+    int fps = frameRateNumber.intValue;
+    NSLog(@"Requested video constraints: %dx%d @ %dfps", width, height, fps);
+    
+    // CRITICAL FIX: Use width, height in correct order
+    [videoSource adaptOutputFormatToWidth:width height:height fps:fps];
+
+
+    CustomCapturerDelegate *customDelegate = [[CustomCapturerDelegate alloc] initWithVideoSource:videoSource];
+    self.customDelegate = [[CustomCapturerDelegate alloc] initWithVideoSource:videoSource];
+    self.videoCapturer = [[RTCCameraVideoCapturerImp alloc] initWithDelegate:customDelegate];
+    self.videoCapturer.delegate = self.customDelegate;
+    if ([videoConstraints isKindOfClass:[NSDictionary class]]) {
+      id createImage = ((NSDictionary*)videoConstraints)[@"createImage"];
+      if ([createImage isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.createImage = [((NSNumber*)createImage) boolValue];
+      }
+      id captureImageWidth = ((NSDictionary*)videoConstraints)[@"captureImageWidth"];
+      if ([captureImageWidth isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.captureImageWidth = [((NSNumber*)captureImageWidth) floatValue];
+      }
+      id captureImageHeight = ((NSDictionary*)videoConstraints)[@"captureImageHeight"];
+      if ([captureImageHeight isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.captureImageHeight = [((NSNumber*)captureImageHeight) floatValue];
+      }
+    }
+    if ([videoConstraints isKindOfClass:[NSDictionary class]]) {
+      id createImage = ((NSDictionary*)videoConstraints)[@"createImage"];
+      if ([createImage isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.createImage = [((NSNumber*)createImage) boolValue];
+      }
+      id captureImageWidth = ((NSDictionary*)videoConstraints)[@"captureImageWidth"];
+      if ([captureImageWidth isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.captureImageWidth = [((NSNumber*)captureImageWidth) floatValue];
+      }
+      id captureImageHeight = ((NSDictionary*)videoConstraints)[@"captureImageHeight"];
+      if ([captureImageHeight isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.captureImageHeight = [((NSNumber*)captureImageHeight) floatValue];
+      }
+    }
+    if ([videoConstraints isKindOfClass:[NSDictionary class]]) {
+      id createImage = ((NSDictionary*)videoConstraints)[@"createImage"];
+      if ([createImage isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.createImage = [((NSNumber*)createImage) boolValue];
+      }
+      id captureImageWidth = ((NSDictionary*)videoConstraints)[@"captureImageWidth"];
+      if ([captureImageWidth isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.captureImageWidth = [((NSNumber*)captureImageWidth) floatValue];
+      }
+      id captureImageHeight = ((NSDictionary*)videoConstraints)[@"captureImageHeight"];
+      if ([captureImageHeight isKindOfClass:[NSNumber class]]) {
+        self.videoCapturer.captureImageHeight = [((NSNumber*)captureImageHeight) floatValue];
+      }
+    }
+  
+    VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc] initWithRTCVideoSource:videoSource];
+      
+
+   
+
+
+
+   //    self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
+    
+//     CMVideoDimensions selectedDimension = CMVideoFormatDescriptionGetDimensions(selectedFormat.formatDescription);
+//     NSInteger selectedWidth = (NSInteger) selectedDimension.width;
+//     NSInteger selectedHeight = (NSInteger) selectedDimension.height;
+//     NSInteger selectedFps = [self selectFpsForFormat:selectedFormat targetFps:targetFps];
+//
+//     self._lastTargetFps = selectedFps;
+//     self._lastTargetWidth = targetWidth;
+//     self._lastTargetHeight = targetHeight;
+    
+  
+
+  //   if ([videoDevice lockForConfiguration:NULL]) {
+  //     @try {
+  //       videoDevice.activeVideoMaxFrameDuration = CMTimeMake(1, (int32_t)selectedFps);
+  //       videoDevice.activeVideoMinFrameDuration = CMTimeMake(1, (int32_t)selectedFps);
+  //     } @catch (NSException* exception) {
+  //       NSLog(@"Failed to set active frame rate!\n User info:%@", exception.userInfo);
+  //     }
+  //     [videoDevice unlockForConfiguration];
+  //   }
+    
+  AVCaptureDeviceFormat *format = [self selectFormatForDevice:videoDevice
+                                              targetWidth:targetWidth
+                                             targetHeight:targetHeight];
+NSLog(@"Selected format: %@", format);
+// Select valid FPS for this format
+NSInteger validFps = [self selectFpsForFormat:format targetFps:targetFps];
+NSLog(@"Target FPS: %ld, Valid FPS for format: %ld", targetFps, validFps);
+      AVCaptureDeviceFormat *formatToPass;
+ // NSArray<NSString *> *supportFormat = @[@"192x144"];
+ NSLog(@"Requested format: %dx%d", width, height);
+      if( width == 192 && height == 144) {
+        NSLog(@"Use requested 192x144 format");
+          formatToPass = format;
+      }else {
+        NSLog(@"Use active format");
+          formatToPass = videoDevice.activeFormat;
+      }
+  //  AVCaptureDeviceFormat *formatToPass = [supportFormat containsObject:currentRes] ? format : videoDevice.activeFormat;
+// CMVideoDimensions selectedDimension = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+// NSInteger selectedWidth = (NSInteger)selectedDimension.width;
+// NSInteger selectedHeight = (NSInteger)selectedDimension.height;
+
+// NSLog(@"Selected format: %ldx%ld", selectedWidth, selectedHeight);
+// NSLog(@"Starting capture with device: %@, format dimensions: %ldx%ld, fps: %ld", 
+//       videoDevice.localizedName, selectedWidth, selectedHeight, validFps);
+
+[self.videoCapturer startCaptureWithDevice:videoDevice
+                                    format:formatToPass
+                                       fps:(int)validFps  // Use validFps instead of fps
+                         completionHandler:^(NSError* error) {
+                           if (error) {
+                             NSLog(@"Start capture error: %@", [error localizedDescription]);
+                           } else {
+                             NSLog(@"Capture started successfully");
+                           }
+                         }];
+
+    // Create video track AFTER starting capture
+    NSString* trackUUID = [[NSUUID UUID] UUIDString];
+    RTCVideoTrack* videoTrack = [self.peerConnectionFactory videoTrackWithSource:videoSource
+                                                                         trackId:trackUUID];
+
+    session = self.videoCapturer.captureSession;
+
+    if (!session) {
+        NSLog(@"Capture session is null.");
+      return;
+    }
+
+    #if TARGET_OS_IPHONE
+      if (@available(iOS 16.0, *)) {
+          if ([session isMultitaskingCameraAccessSupported]) {
+              [session beginConfiguration];
+              [session setMultitaskingCameraAccessEnabled:YES];
+              [session commitConfiguration];
+          }else{
+              NSLog(@"Enable VOIP background mode for multitasking access.");
+          }
+      }else{
+          NSLog(@"Multitasking access requires iOS 16.0+.");
+      }
+    #else
+      NSLog(@"Multitasking camera access not supported on macOS.");
+    #endif
+
+    LocalVideoTrack *localVideoTrack = [[LocalVideoTrack alloc] initWithTrack:videoTrack videoProcessing:videoProcessingAdapter];
+      
+    __weak RTCCameraVideoCapturerImp* capturer = self.videoCapturer;
+    self.videoCapturerStopHandlers[videoTrack.trackId] = ^(CompletionHandler handler) {
+      NSLog(@"Stop video capturer, trackID %@", videoTrack.trackId);
+      [capturer stopCaptureWithCompletionHandler:handler];
+    };
+
+    if (!videoDeviceId) {
+      videoDeviceId = videoDevice.uniqueID;
+    }
+
+    if (!facingMode) {
+      facingMode = videoDevice.position == AVCaptureDevicePositionBack    ? @"environment"
+                   : videoDevice.position == AVCaptureDevicePositionFront ? @"user"
+                                                                          : @"unspecified";
+    }
+      
+  
+
+    videoTrack.settings = @{
+      @"deviceId" : videoDeviceId,
+      @"kind" : @"videoinput",
+      @"width" : [NSNumber numberWithInteger:width ],
+      @"height" : [NSNumber numberWithInteger:height],
+      @"frameRate" : [NSNumber numberWithInteger:fps],
+      @"facingMode" : facingMode,
+    };
+
+    [mediaStream addVideoTrack:videoTrack];
+
+     [self.localTracks setObject:localVideoTrack forKey:trackUUID];
+
+    successCallback(mediaStream);
+  }
+  
+   else {
+    // According to step 6.2.3 of the getUserMedia() algorithm, if there is no
+    // source, fail with a new OverconstrainedError.
+    errorCallback(@"OverconstrainedError", /* errorMessage */ nil);
+  }
+#else 
+ if (videoDevice) {
     RTCVideoSource* videoSource = [self.peerConnectionFactory videoSource];
    #if TARGET_OS_OSX
     if (self.videoCapturer) {
@@ -641,6 +855,7 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     // source, fail with a new OverconstrainedError.
     errorCallback(@"OverconstrainedError", /* errorMessage */ nil);
   }
+#endif
 }
 
 - (void)mediaStreamRelease:(RTCMediaStream*)stream {
@@ -1024,7 +1239,12 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
   if (position == AVCaptureDevicePositionUnspecified) {
     return [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
   }
-  NSArray<AVCaptureDevice*>* captureDevices = [RTCCameraVideoCapturer captureDevices];
+  # if TARGET_OS_IPHONE
+  NSArray<AVCaptureDevice*>* captureDevices = [RTCCameraVideoCapturerImp captureDevices];
+  #endif
+  # if TARGET_OS_OSX
+    NSArray<AVCaptureDevice*>* captureDevices = [RTCCameraVideoCapturer captureDevices];
+  #endif
   for (AVCaptureDevice* device in captureDevices) {
     if (device.position == position) {
       return device;
@@ -1035,7 +1255,33 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
   }
   return nil;
 }
+#if TARGET_OS_IPHONE
+- (AVCaptureDeviceFormat*)selectFormatForDevice:(AVCaptureDevice*)device
+                                    targetWidth:(NSInteger)targetWidth
+                                   targetHeight:(NSInteger)targetHeight {
+  NSArray<AVCaptureDeviceFormat*>* formats =
+      [RTCCameraVideoCapturerImp supportedFormatsForDevice:device];
+  NSLog(@"Available formats for device %@:", formats);
 
+AVCaptureDeviceFormat *selectedFormat = nil;
+    int currentDiff = INT_MAX;
+    for (AVCaptureDeviceFormat *format in formats) {
+        CMVideoDimensions dimension = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+        FourCharCode pixelFormat = CMFormatDescriptionGetMediaSubType(format.formatDescription);
+        int diff = abs(targetWidth - dimension.width) + abs(targetHeight - dimension.height);
+        if (diff < currentDiff) {
+            selectedFormat = format;
+            currentDiff = diff;
+        } else if (diff == currentDiff && pixelFormat == [self.videoCapturer preferredOutputPixelFormat]) {
+            selectedFormat = format;
+        }
+    }
+    return selectedFormat;
+  
+ }
+ #endif
+
+ #if TARGET_OS_OSX
 - (AVCaptureDeviceFormat*)selectFormatForDevice:(AVCaptureDevice*)device
                                     targetWidth:(NSInteger)targetWidth
                                    targetHeight:(NSInteger)targetHeight {
@@ -1065,7 +1311,32 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
   }
   return selectedFormat;
 }
+ #endif
 
+# if TARGET_OS_IPHONE
+
+- (NSInteger)selectFpsForFormat:(AVCaptureDeviceFormat *)format targetFps:(NSInteger)targetFps {
+    NSInteger selectedFps = targetFps;
+    
+    for (AVFrameRateRange *range in format.videoSupportedFrameRateRanges) {
+        // If target fps is within range, use it
+        if (targetFps >= range.minFrameRate && targetFps <= range.maxFrameRate) {
+            return targetFps;
+        }
+        
+        // Otherwise, find closest fps within range
+        if (targetFps < range.minFrameRate) {
+            selectedFps = (NSInteger)range.minFrameRate;
+        } else if (targetFps > range.maxFrameRate) {
+            selectedFps = MIN(selectedFps, (NSInteger)range.maxFrameRate);
+        }
+    }
+    
+    return selectedFps;
+}
+#endif 
+
+#if TARGET_OS_OSX
 - (NSInteger)selectFpsForFormat:(AVCaptureDeviceFormat*)format targetFps:(NSInteger)targetFps {
   Float64 maxSupportedFramerate = 0;
   for (AVFrameRateRange* fpsRange in format.videoSupportedFrameRateRanges) {
@@ -1073,5 +1344,6 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
   }
   return fmin(maxSupportedFramerate, targetFps);
 }
+#endif
 
 @end

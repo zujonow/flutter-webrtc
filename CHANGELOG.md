@@ -1,5 +1,8 @@
 # Changelog
 
+[0.0.12] - 2025.12.28
+- Refactored the startCaptureWith logic and updated the capture flow based on the target operating system.
+
 [0.0.11] - 2025.09.15
 - Introduced screen share audio support for Android devices.
 - Updated the Android version.

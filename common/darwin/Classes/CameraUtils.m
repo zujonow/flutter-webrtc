@@ -1,4 +1,8 @@
 #import "CameraUtils.h"
+#if TARGET_OS_IPHONE
+#import "RTCCameraVideoCapturerImp.h"
+#endif
+
 
 @implementation FlutterWebRTCPlugin (CameraUtils)
 
@@ -306,7 +310,12 @@
   if (position == AVCaptureDevicePositionUnspecified) {
     return [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
   }
-  NSArray<AVCaptureDevice*>* captureDevices = [RTCCameraVideoCapturer captureDevices];
+  #if TARGET_OS_IPHONE
+ NSArray<AVCaptureDevice*>* captureDevices = [RTCCameraVideoCapturerImp captureDevices];
+#else
+    NSArray<AVCaptureDevice*>* captureDevices = [RTCCameraVideoCapturer captureDevices];
+#endif
+  
   for (AVCaptureDevice* device in captureDevices) {
     if (device.position == position) {
       return device;
@@ -318,8 +327,13 @@
 - (AVCaptureDeviceFormat*)selectFormatForDevice:(AVCaptureDevice*)device
                                     targetWidth:(NSInteger)targetWidth
                                    targetHeight:(NSInteger)targetHeight {
+#if TARGET_OS_IPHONE                               
+  NSArray<AVCaptureDeviceFormat*>* formats =
+      [RTCCameraVideoCapturerImp supportedFormatsForDevice:device];
+#else
   NSArray<AVCaptureDeviceFormat*>* formats =
       [RTCCameraVideoCapturer supportedFormatsForDevice:device];
+#endif
   AVCaptureDeviceFormat* selectedFormat = nil;
   long currentDiff = INT_MAX;
   for (AVCaptureDeviceFormat* format in formats) {
