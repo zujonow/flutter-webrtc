@@ -552,7 +552,6 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     int width = widthNumber.intValue;
     int height = heightNumber.intValue;
     int fps = frameRateNumber.intValue;
-    NSLog(@"Requested video constraints: %dx%d @ %dfps", width, height, fps);
     
     // CRITICAL FIX: Use width, height in correct order
     [videoSource adaptOutputFormatToWidth:width height:height fps:fps];
@@ -638,18 +637,17 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
   AVCaptureDeviceFormat *format = [self selectFormatForDevice:videoDevice
                                               targetWidth:targetWidth
                                              targetHeight:targetHeight];
-NSLog(@"Selected format: %@", format);
+
 // Select valid FPS for this format
 NSInteger validFps = [self selectFpsForFormat:format targetFps:targetFps];
-NSLog(@"Target FPS: %ld, Valid FPS for format: %ld", targetFps, validFps);
+
       AVCaptureDeviceFormat *formatToPass;
  // NSArray<NSString *> *supportFormat = @[@"192x144"];
- NSLog(@"Requested format: %dx%d", width, height);
       if( width == 192 && height == 144) {
-        NSLog(@"Use requested 192x144 format");
+       
           formatToPass = format;
       }else {
-        NSLog(@"Use active format");
+      
           formatToPass = videoDevice.activeFormat;
       }
   //  AVCaptureDeviceFormat *formatToPass = [supportFormat containsObject:currentRes] ? format : videoDevice.activeFormat;
@@ -666,9 +664,9 @@ NSLog(@"Target FPS: %ld, Valid FPS for format: %ld", targetFps, validFps);
                                        fps:(int)validFps  // Use validFps instead of fps
                          completionHandler:^(NSError* error) {
                            if (error) {
-                             NSLog(@"Start capture error: %@", [error localizedDescription]);
+                              //
                            } else {
-                             NSLog(@"Capture started successfully");
+                            //
                            }
                          }];
 
@@ -680,7 +678,7 @@ NSLog(@"Target FPS: %ld, Valid FPS for format: %ld", targetFps, validFps);
     session = self.videoCapturer.captureSession;
 
     if (!session) {
-        NSLog(@"Capture session is null.");
+       
       return;
     }
 
@@ -691,20 +689,19 @@ NSLog(@"Target FPS: %ld, Valid FPS for format: %ld", targetFps, validFps);
               [session setMultitaskingCameraAccessEnabled:YES];
               [session commitConfiguration];
           }else{
-              NSLog(@"Enable VOIP background mode for multitasking access.");
+
           }
       }else{
-          NSLog(@"Multitasking access requires iOS 16.0+.");
+
       }
     #else
-      NSLog(@"Multitasking camera access not supported on macOS.");
+
     #endif
 
     LocalVideoTrack *localVideoTrack = [[LocalVideoTrack alloc] initWithTrack:videoTrack videoProcessing:videoProcessingAdapter];
       
     __weak RTCCameraVideoCapturerImp* capturer = self.videoCapturer;
     self.videoCapturerStopHandlers[videoTrack.trackId] = ^(CompletionHandler handler) {
-      NSLog(@"Stop video capturer, trackID %@", videoTrack.trackId);
       [capturer stopCaptureWithCompletionHandler:handler];
     };
 
@@ -767,8 +764,7 @@ NSLog(@"Target FPS: %ld, Valid FPS for format: %ld", targetFps, validFps);
     self._lastTargetFps = selectedFps;
     self._lastTargetWidth = targetWidth;
     self._lastTargetHeight = targetHeight;
-    
-      NSLog(@"target format %ldx%ld, targetFps: %ld, selected format: %ldx%ld, selected fps %ld", targetWidth, targetHeight, targetFps, selectedWidth, selectedHeight, selectedFps);
+
 
     if ([videoDevice lockForConfiguration:NULL]) {
       @try {
@@ -1261,7 +1257,6 @@ NSLog(@"Target FPS: %ld, Valid FPS for format: %ld", targetFps, validFps);
                                    targetHeight:(NSInteger)targetHeight {
   NSArray<AVCaptureDeviceFormat*>* formats =
       [RTCCameraVideoCapturerImp supportedFormatsForDevice:device];
-  NSLog(@"Available formats for device %@:", formats);
 
 AVCaptureDeviceFormat *selectedFormat = nil;
     int currentDiff = INT_MAX;
