@@ -1,5 +1,9 @@
 # Changelog
 
+[0.0.12] - 2025.12.29
+- Refactored the `startCaptureWith` logic and introduced OS-specific capture handling to ensure correct video resolution behavior on iOS.
+
+
 [0.0.11] - 2025.09.15
 - Introduced screen share audio support for Android devices.
 - Updated the Android version.
