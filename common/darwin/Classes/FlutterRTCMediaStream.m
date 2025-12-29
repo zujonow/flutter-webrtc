@@ -605,13 +605,8 @@ rtcConstraints = [self parseMediaConstraints:audioConstraints];
     }
   
     VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc] initWithRTCVideoSource:videoSource];
-      
-
-   
-
-
-
-   //    self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
+  
+//    self.videoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:videoProcessingAdapter];
     
 //     CMVideoDimensions selectedDimension = CMVideoFormatDescriptionGetDimensions(selectedFormat.formatDescription);
 //     NSInteger selectedWidth = (NSInteger) selectedDimension.width;
