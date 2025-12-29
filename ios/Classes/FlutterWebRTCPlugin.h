@@ -12,6 +12,9 @@
 @class FlutterRTCFrameCapturer;
 @class FlutterRTCMediaRecorder;
 @class AudioManager;
+#if TARGET_OS_IPHONE
+@class RTCCameraVideoCapturerImp;
+#endif
 void postEvent(FlutterEventSink _Nonnull sink, id _Nullable event);
 
 typedef void (^CompletionHandler)(void);
@@ -46,12 +49,18 @@ typedef void (^CapturerStopHandler)(CompletionHandler _Nonnull handler);
     NSMutableDictionary<NSString*, RTCFrameCryptorKeyProvider*>* _Nullable keyProviders;
 
 #if TARGET_OS_IPHONE
-@property(nonatomic, retain) UIViewController* _Nullable viewController;/*for broadcast or ReplayKit */
+@property(nonatomic, retain)
+    UIViewController* _Nullable viewController; /*for broadcast or ReplayKit */
 #endif
 
 @property(nonatomic, strong) FlutterEventSink _Nullable eventSink;
 @property(nonatomic, strong) NSObject<FlutterBinaryMessenger>* _Nonnull messenger;
+#if TARGET_OS_IPHONE
+@property(nonatomic, strong) RTCCameraVideoCapturerImp* _Nullable videoCapturer;
+#endif
+#if TARGET_OS_OSX
 @property(nonatomic, strong) RTCCameraVideoCapturer* _Nullable videoCapturer;
+#endif
 @property(nonatomic, strong) CustomCapturerDelegate* _Nullable customDelegate;
 @property(nonatomic, strong) FlutterRTCFrameCapturer* _Nullable frameCapturer;
 @property(nonatomic, strong) AVAudioSessionPort _Nullable preferredInput;
