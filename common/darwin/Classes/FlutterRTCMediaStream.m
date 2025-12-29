@@ -663,11 +663,6 @@ NSInteger validFps = [self selectFpsForFormat:format targetFps:targetFps];
                                     format:formatToPass
                                        fps:(int)validFps  // Use validFps instead of fps
                          completionHandler:^(NSError* error) {
-                           if (error) {
-                              //
-                           } else {
-                            //
-                           }
                          }];
 
     // Create video track AFTER starting capture
@@ -688,11 +683,7 @@ NSInteger validFps = [self selectFpsForFormat:format targetFps:targetFps];
               [session beginConfiguration];
               [session setMultitaskingCameraAccessEnabled:YES];
               [session commitConfiguration];
-          }else{
-
           }
-      }else{
-
       }
     #else
 
