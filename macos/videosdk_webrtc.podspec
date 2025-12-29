@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'videosdk_webrtc'
-  s.version          = '0.0.12'
+  s.version          = '0.0.13'
   s.summary          = 'Flutter WebRTC plugin for macOS.'
   s.description      = <<-DESC
 A new flutter plugin project.

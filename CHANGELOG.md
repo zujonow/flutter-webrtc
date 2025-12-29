@@ -1,5 +1,8 @@
 # Changelog
 
+[0.0.13] - 2025.12.29
+- Fixed Internal Bug
+
 [0.0.12] - 2025.12.29
 - Refactored the `startCaptureWith` logic and introduced OS-specific capture handling to ensure correct video resolution behavior on iOS.
 
