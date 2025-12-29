@@ -685,7 +685,6 @@ NSInteger validFps = [self selectFpsForFormat:format targetFps:targetFps];
               [session commitConfiguration];
           }
       }
-    #else
 
     #endif
 
