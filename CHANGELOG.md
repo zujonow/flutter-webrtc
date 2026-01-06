@@ -1,5 +1,8 @@
 # Changelog
 
+[0.0.14] - 2026.01.06
+- Resolved an issue with switching audio output devices on iOS.
+
 [0.0.13] - 2025.12.29
 - Fixed Internal Bug
 

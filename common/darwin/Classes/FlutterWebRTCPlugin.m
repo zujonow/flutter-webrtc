@@ -232,9 +232,7 @@ static FlutterWebRTCPlugin *sharedSingleton;
       [[interuptionDict valueForKey:AVAudioSessionRouteChangeReasonKey] integerValue];
   if (self.eventSink &&
       (routeChangeReason == AVAudioSessionRouteChangeReasonNewDeviceAvailable ||
-       routeChangeReason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable ||
-       routeChangeReason == AVAudioSessionRouteChangeReasonCategoryChange ||
-       routeChangeReason == AVAudioSessionRouteChangeReasonOverride)) {
+       routeChangeReason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable)) {
     postEvent(self.eventSink, @{@"event" : @"onDeviceChange"});
   }
 #endif
