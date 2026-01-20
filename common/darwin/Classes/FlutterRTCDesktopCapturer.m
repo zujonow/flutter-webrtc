@@ -66,10 +66,12 @@ VideoProcessingAdapter *videoProcessingAdapter = [[VideoProcessingAdapter alloc]
     } else {
       NSLog(@"Not able to find the %@ key", kRTCScreenSharingExtension);
     }
-    SEL selector = NSSelectorFromString(@"buttonPressed:");
-    if ([picker respondsToSelector:selector]) {
-      [picker performSelector:selector withObject:nil];
-    }
+// This code is commented out because using non-public iOS APIs is not allowed in production builds
+// and may lead to App Store rejection.
+    // SEL selector = NSSelectorFromString(@"buttonPressed:");
+    // if ([picker respondsToSelector:selector]) {
+    //   [picker performSelector:selector withObject:nil];
+    // }
   }
 #endif
 

@@ -1,5 +1,8 @@
 # Changelog
 
+[0.0.15] - 2026.01.20
+- Removed usage of non-public iOS APIs to ensure App Store compliance and improve production stability.
+
 [0.0.14] - 2026.01.06
 - Resolved an issue with switching audio output devices on iOS.
 
