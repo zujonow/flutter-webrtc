@@ -1,9 +1,9 @@
 #include "videosdk_webrtc/flutter_web_r_t_c_plugin.h"
 
+#include <flutter/plugin_registrar_windows.h>
 #include "flutter_common.h"
 #include "flutter_webrtc.h"
 #include "task_runner_windows.h"
-#include <flutter/plugin_registrar_windows.h>
 
 const char* kChannelName = "FlutterWebRTC.Method";
 
@@ -39,7 +39,7 @@ class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
 
   TaskRunner* task_runner() { return task_runner_.get(); }
 
-  private:
+ private:
   // Creates a plugin that communicates on the given channel.
   FlutterWebRTCPluginImpl(PluginRegistrar* registrar,
                           std::unique_ptr<MethodChannel> channel)
@@ -67,11 +67,11 @@ class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
   std::unique_ptr<TaskRunner> task_runner_;
 };
 
-}  // namespace flutter_webrtc_plugin
+}  // namespace videosdk_webrtc_plugin
 
 void FlutterWebRTCPluginRegisterWithRegistrar(
     FlutterDesktopPluginRegistrarRef registrar) {
-  flutter_webrtc_plugin::FlutterWebRTCPluginImpl::RegisterWithRegistrar(
+  videosdk_webrtc_plugin::FlutterWebRTCPluginImpl::RegisterWithRegistrar(
       flutter::PluginRegistrarManager::GetInstance()
           ->GetRegistrar<flutter::PluginRegistrarWindows>(registrar));
 }
