@@ -249,11 +249,11 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
         VideoEncoderFactorySimulcast* simulcastFactory =
             [[VideoEncoderFactorySimulcast alloc] initWithPrimary:encoderFactory fallback:encoderFactory];
         _peerConnectionFactory =
-            [[RTCPeerConnectionFactory alloc] initWithBypassVoiceProcessing:bypassVoiceProcessing
-                                                             encoderFactory:simulcastFactory
-                                                             decoderFactory:decoderFactory
-                                                      audioProcessingModule:_audioManager.audioProcessingModule];
-
+        [[RTCPeerConnectionFactory alloc] initWithAudioDeviceModuleType:nil
+        bypassVoiceProcessing:bypassVoiceProcessing
+        encoderFactory:simulcastFactory
+        decoderFactory:decoderFactory
+        audioProcessingModule:_audioManager.audioProcessingModule];
         RTCPeerConnectionFactoryOptions *options = [[RTCPeerConnectionFactoryOptions alloc] init];
         for (NSString* adapter in networkIgnoreMask)
         {

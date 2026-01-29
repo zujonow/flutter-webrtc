@@ -844,8 +844,15 @@ id codecs = argsMap[@"codecs"];
         [codecCaps addObject:codec];
     }
   }
-  [transcevier setCodecPreferences:codecCaps];
-  result(nil);
+  NSError *error = nil;
+  [transcevier setCodecPreferences:codecCaps error:&error];
+  if (error) {
+    result([FlutterError errorWithCode:@"SetCodecPreferencesError"
+                               message:error.localizedDescription
+                               details:nil]);
+  } else {
+    result(nil);
+  }
 }
 
 @end
