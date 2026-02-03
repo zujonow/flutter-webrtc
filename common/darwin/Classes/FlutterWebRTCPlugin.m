@@ -1693,28 +1693,6 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
   return stream;
 }
 
-- (RTCMediaStreamTrack* _Nullable)remoteTrackForId:(NSString* _Nonnull)trackId {
-    RTCMediaStreamTrack *mediaStreamTrack = nil;
-      for (NSString* currentId in _peerConnections.allKeys) {
-        RTCPeerConnection* peerConnection = _peerConnections[currentId];
-        mediaStreamTrack = peerConnection.remoteTracks[trackId];
-        if (!mediaStreamTrack) {
-          for (RTCRtpTransceiver* transceiver in peerConnection.transceivers) {
-            if (transceiver.receiver.track != nil &&
-                [transceiver.receiver.track.trackId isEqual:trackId]) {
-                mediaStreamTrack = transceiver.receiver.track;
-              break;
-            }
-          }
-        }
-        if (mediaStreamTrack) {
-          break;
-        }
-      }
-
-    return mediaStreamTrack;
-}
-
 - (NSString *)audioTrackIdForVideoTrackId:(NSString *)videoTrackId {
     NSString *audioTrackId = nil;
 
@@ -1745,6 +1723,28 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     }
 
     return audioTrackId;
+}
+
+- (RTCMediaStreamTrack* _Nullable)remoteTrackForId:(NSString* _Nonnull)trackId {
+    RTCMediaStreamTrack *mediaStreamTrack = nil;
+      for (NSString* currentId in _peerConnections.allKeys) {
+        RTCPeerConnection* peerConnection = _peerConnections[currentId];
+        mediaStreamTrack = peerConnection.remoteTracks[trackId];
+        if (!mediaStreamTrack) {
+          for (RTCRtpTransceiver* transceiver in peerConnection.transceivers) {
+            if (transceiver.receiver.track != nil &&
+                [transceiver.receiver.track.trackId isEqual:trackId]) {
+                mediaStreamTrack = transceiver.receiver.track;
+              break;
+            }
+          }
+        }
+        if (mediaStreamTrack) {
+          break;
+        }
+      }
+
+    return mediaStreamTrack;
 }
 
 - (RTCMediaStreamTrack*)trackForId:(NSString*)trackId peerConnectionId:(NSString*)peerConnectionId {
