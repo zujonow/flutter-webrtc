@@ -159,7 +159,6 @@ static FlutterWebRTCPlugin *sharedSingleton;
     _textures = textures;
     _messenger = messenger;
     _speakerOn = NO;
-    _speakerOnButPreferBluetooth = NO;
     _eventChannel = eventChannel;
       _audioManager = AudioManager.sharedInstance;
 #if TARGET_OS_IPHONE
@@ -1066,7 +1065,6 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     NSDictionary* argsMap = call.arguments;
     NSNumber* enable = argsMap[@"enable"];
     _speakerOn = enable.boolValue;
-    _speakerOnButPreferBluetooth = NO;
     [AudioUtils setSpeakerphoneOn:_speakerOn];
     postEvent(self.eventSink, @{@"event" : @"onDeviceChange"});
     result(nil);
@@ -1076,8 +1074,6 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     result(nil);
   }
   else if ([@"enableSpeakerphoneButPreferBluetooth" isEqualToString:call.method]) {
-    _speakerOn = YES;
-    _speakerOnButPreferBluetooth = YES;
     [AudioUtils setSpeakerphoneOnButPreferBluetooth];
     result(nil);
   }
