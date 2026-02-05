@@ -189,14 +189,10 @@ static FlutterWebRTCPlugin *sharedSingleton;
                                                name:AVAudioSessionRouteChangeNotification
                                              object:session];
 #endif
-#if TARGET_OS_OSX
-  [_peerConnectionFactory.audioDeviceModule setDevicesUpdatedHandler:^(void) {
-    NSLog(@"Handle Devices Updated!");
-    if (self.eventSink) {
-      postEvent( self.eventSink, @{@"event" : @"onDeviceChange"});
-    }
-  }];
-#endif
+
+  // Observe audio device module events.
+  _peerConnectionFactory.audioDeviceModule.observer = self;
+
   return self;
 }
 
@@ -238,7 +234,6 @@ static FlutterWebRTCPlugin *sharedSingleton;
 #endif
 }
 
-
 - (void)initialize:(NSArray*)networkIgnoreMask
 bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     // RTCSetMinDebugLogLevel(RTCLoggingSeverityVerbose);
@@ -249,7 +244,8 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
         VideoEncoderFactorySimulcast* simulcastFactory =
             [[VideoEncoderFactorySimulcast alloc] initWithPrimary:encoderFactory fallback:encoderFactory];
         _peerConnectionFactory =
-            [[RTCPeerConnectionFactory alloc] initWithBypassVoiceProcessing:bypassVoiceProcessing
+            [[RTCPeerConnectionFactory alloc] initWithAudioDeviceModuleType:RTCAudioDeviceModuleTypeAudioEngine
+                                                      bypassVoiceProcessing:bypassVoiceProcessing
                                                              encoderFactory:simulcastFactory
                                                              decoderFactory:decoderFactory
                                                       audioProcessingModule:_audioManager.audioProcessingModule];
@@ -284,16 +280,15 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
   if ([@"initialize" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSDictionary* options = argsMap[@"options"];
-      BOOL enableBypassVoiceProcessing = NO;
+    BOOL enableBypassVoiceProcessing = NO;
     if(options[@"bypassVoiceProcessing"] != nil){
         enableBypassVoiceProcessing = ((NSNumber*)options[@"bypassVoiceProcessing"]).boolValue;
     }
     NSArray* networkIgnoreMask = [NSArray new];
-
     if (options[@"networkIgnoreMask"] != nil) {
       networkIgnoreMask = ((NSArray*)options[@"networkIgnoreMask"]);
     }
-   [self initialize:networkIgnoreMask bypassVoiceProcessing:enableBypassVoiceProcessing];
+    [self initialize:networkIgnoreMask bypassVoiceProcessing:enableBypassVoiceProcessing];
     result(@"");
   } else if ([@"createPeerConnection" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
@@ -565,7 +560,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
     [self dataChannelSend:peerConnectionId dataChannelId:dataChannelId data:data type:type];
     result(nil);
-    }  else if ([@"dataChannelGetBufferedAmount" isEqualToString:call.method]) {
+  }  else if ([@"dataChannelGetBufferedAmount" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSString* peerConnectionId = argsMap[@"peerConnectionId"];
     NSString* dataChannelId = argsMap[@"dataChannelId"];
@@ -587,7 +582,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
       for (RTCVideoTrack* track in stream.videoTracks) {
         [_localTracks removeObjectForKey:track.trackId];
         RTCVideoTrack* videoTrack = (RTCVideoTrack*)track;
-         FlutterRTCVideoRenderer *renderer = [self findRendererByTrackId:videoTrack.trackId];
+        FlutterRTCVideoRenderer *renderer = [self findRendererByTrackId:videoTrack.trackId];
         if(renderer != nil) {
           renderer.videoTrack = nil;
         }
@@ -596,7 +591,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
           shouldCallResult = NO;
           stopHandler(^{
             NSLog(@"video capturer stopped, trackID = %@", videoTrack.trackId);
-              self.videoCapturer = nil;
+            self.videoCapturer = nil;
             result(nil);
           });
           [self.videoCapturerStopHandlers removeObjectForKey:videoTrack.trackId];
@@ -759,7 +754,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     if (audioTrack) {
       [self ensureAudioSession];
     }
-      FlutterRTCVideoRenderer *renderer = [self findRendererByTrackId:trackId];
+    FlutterRTCVideoRenderer *renderer = [self findRendererByTrackId:trackId];
     if(renderer != nil) {
       renderer.videoTrack = nil;
     }
@@ -1625,7 +1620,6 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 - (void)ensureAudioSession {
 #if TARGET_OS_IPHONE
   [AudioUtils ensureAudioSessionWithRecording:[self hasLocalAudioTrack]];
-  [AudioUtils setSpeakerphoneOn:_speakerOn];
 #endif
 }
 
@@ -1645,7 +1639,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
     for (RTCMediaStreamTrack* track in stream.audioTracks) {
       NSString* trackId = track.trackId;
-      [self.localTracks setObject:[[LocalAudioTrack alloc] initWithTrack:(RTCAudioTrack *)track] forKey:trackId];
+        [self.localTracks setObject:[[LocalAudioTrack alloc] initWithTrack:(RTCAudioTrack *)track] forKey:trackId];
       [audioTracks addObject:@{
         @"enabled" : @(track.isEnabled),
         @"id" : trackId,
@@ -1658,7 +1652,7 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
     for (RTCMediaStreamTrack* track in stream.videoTracks) {
       NSString* trackId = track.trackId;
-            [_localTracks setObject:[[LocalVideoTrack alloc] initWithTrack:(RTCVideoTrack *)track]
+      [_localTracks setObject:[[LocalVideoTrack alloc] initWithTrack:(RTCVideoTrack *)track]
                        forKey:trackId];
       [videoTracks addObject:@{
         @"enabled" : @(track.isEnabled),
@@ -1694,49 +1688,6 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
   }
   return stream;
 }
-
-// - (RTCMediaStreamTrack* _Nullable)remoteTrackForId:(NSString* _Nonnull)trackId {
-//     RTCMediaStreamTrack *mediaStreamTrack = nil;
-
-//     for (NSString *currentId in _peerConnections.allKeys) {
-//         RTCPeerConnection *peerConnection = _peerConnections[currentId];
-//         RTCConfiguration *config = peerConnection.configuration;
-//         RTCSdpSemantics sdpSemantics = config.sdpSemantics;
-//         BOOL isUnifiedPlan = (sdpSemantics == RTCSdpSemanticsUnifiedPlan);
-
-//         if (isUnifiedPlan) {
-//             for (RTCRtpReceiver *receiver in peerConnection.receivers) {
-//                 RTCMediaStreamTrack *track = receiver.track;
-//                 if (track && [track.trackId isEqualToString:trackId]) {
-//                     mediaStreamTrack = track;
-//                     break;
-//                 }
-//             }
-//         } else {
-//             for (id streamObj in peerConnection.remoteStreams) {
-//                 if (![streamObj isKindOfClass:[RTCMediaStream class]]) {
-//                     continue;
-//                 }
-//                 RTCMediaStream *stream = (RTCMediaStream *)streamObj;
-//                 for (RTCVideoTrack *videoTrack in stream.videoTracks) {
-//                     if ([videoTrack.trackId isEqualToString:trackId]) {
-//                         mediaStreamTrack = videoTrack;
-//                         break;
-//                     }
-//                 }
-//                 if (mediaStreamTrack) break;
-//             }
-//             if (!mediaStreamTrack && [peerConnection respondsToSelector:@selector(remoteTracks)]) {
-//                 NSDictionary<NSString *, RTCMediaStreamTrack *> *remoteTracks = [peerConnection performSelector:@selector(remoteTracks)];
-//                 mediaStreamTrack = remoteTracks[trackId];
-//             }
-//         }
-//         if (mediaStreamTrack) {
-//             break;
-//         }
-//     }
-//     return mediaStreamTrack;
-// }
 
 - (NSString *)audioTrackIdForVideoTrackId:(NSString *)videoTrackId {
     NSString *audioTrackId = nil;
@@ -1791,9 +1742,6 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 
     return mediaStreamTrack;
 }
-
-
-
 
 - (RTCMediaStreamTrack*)trackForId:(NSString*)trackId peerConnectionId:(NSString*)peerConnectionId {
    id<LocalTrack> track = _localTracks[trackId];
@@ -2478,4 +2426,14 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
     }
     return nil;
 }
+
+#pragma mark - RTCAudioDeviceModuleDelegate methods
+
+- (void)audioDeviceModuleDidUpdateDevices:(RTCAudioDeviceModule *)audioDeviceModule {
+    NSLog(@"audioDeviceModule did update devices");
+    if (self.eventSink) {
+      postEvent( self.eventSink, @{@"event" : @"onDeviceChange"});
+    }
+}
+
 @end

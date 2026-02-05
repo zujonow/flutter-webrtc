@@ -1,5 +1,9 @@
 # Changelog
 
+[0.0.16] - 2026.05.24
+- Resolved an audio distortion issue (chipmunk effect) occurring with Bluetooth output devices such as AirPods.
+- Fixed a Windows build error affecting Flutter desktop builds.
+
 [0.0.15] - 2026.01.20
 - Removed usage of non-public iOS APIs to ensure App Store compliance and improve production stability.
 

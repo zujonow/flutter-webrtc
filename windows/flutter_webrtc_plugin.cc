@@ -67,11 +67,11 @@ class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
   std::unique_ptr<TaskRunner> task_runner_;
 };
 
-}  // namespace flutter_webrtc_plugin
+}  // namespace videosdk_webrtc_plugin
 
 void FlutterWebRTCPluginRegisterWithRegistrar(
     FlutterDesktopPluginRegistrarRef registrar) {
-  flutter_webrtc_plugin::FlutterWebRTCPluginImpl::RegisterWithRegistrar(
+  videosdk_webrtc_plugin::FlutterWebRTCPluginImpl::RegisterWithRegistrar(
       flutter::PluginRegistrarManager::GetInstance()
           ->GetRegistrar<flutter::PluginRegistrarWindows>(registrar));
 }
