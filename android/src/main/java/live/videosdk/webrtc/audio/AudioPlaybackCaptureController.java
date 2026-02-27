@@ -49,6 +49,90 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
         this.shareScreenAudio = shareScreenAudio;
     }
 
+    // -----------------------------------------------------------------------
+    // Noise Cancellation via rnnoise JNI — applied HERE because this is
+    // raw mic PCM before WebRTC's sub-band splitter. rnnoise requires
+    // full-band broadband PCM (not sub-band-split data).
+    // -----------------------------------------------------------------------
+    private static boolean rnnoiseLibLoaded = false;
+    private static final String RNNOISE_TAG = "RustNoiseCancel";
+
+    static {
+        try {
+            System.loadLibrary("rnnoise_jni");
+            rnnoiseLibLoaded = true;
+            android.util.Log.d(RNNOISE_TAG, ">>> rnnoise_jni loaded in AudioPlaybackCaptureController");
+        } catch (UnsatisfiedLinkError e) {
+            android.util.Log.e(RNNOISE_TAG, ">>> Failed to load rnnoise_jni: " + e.getMessage());
+        }
+    }
+
+    // JNI bindings — implemented in native-lib.cpp
+    private native void initNoiseCancellation();
+    private native void destroyNoiseCancellation();
+    private native float processAudioFrame(short[] audioData);
+
+    private boolean rnnoiseInitialized = false;
+
+    private void ensureRnnoiseInitialized() {
+        if (!rnnoiseInitialized && rnnoiseLibLoaded) {
+            try {
+                initNoiseCancellation();
+                rnnoiseInitialized = true;
+                android.util.Log.d(RNNOISE_TAG, ">>> rnnoise initialized in onBuffer hook");
+            } catch (Throwable t) {
+                android.util.Log.e(RNNOISE_TAG, ">>> rnnoise init failed: " + t.getMessage());
+            }
+        }
+    }
+
+    private static final int FRAME_SIZE = 480; // 10ms at 48kHz
+
+    /**
+     * Apply rnnoise to raw 16-bit PCM in the buffer.
+     * Processes in-place using 480-sample frames (10ms at 48kHz).
+     */
+    private long noiseCancelFrameCount = 0;
+
+    private void applyNoiseCancellation(ByteBuffer buffer, int bytesAvailable, int sampleRate) {
+        ensureRnnoiseInitialized();
+        if (!rnnoiseInitialized) return;
+
+        int frameSize = (sampleRate == 48000) ? 480 : (sampleRate * 10 / 1000);
+        if (frameSize <= 0) return;
+        int frameSizeBytes = frameSize * 2; // 16-bit = 2 bytes per sample
+        int numFrames = bytesAvailable / frameSizeBytes;
+        if (numFrames == 0) {
+            android.util.Log.w(RNNOISE_TAG, ">>> applyNC: 0 frames! sampleRate=" + sampleRate + " bytesAvailable=" + bytesAvailable + " frameSize=" + frameSize);
+            return;
+        }
+
+        noiseCancelFrameCount += numFrames;
+        if ((noiseCancelFrameCount / 100) > ((noiseCancelFrameCount - numFrames) / 100)) {
+            System.out.println(">>> [RustNoiseCancel] onBuffer ACTIVE! total frames=" + noiseCancelFrameCount + " sampleRate=" + sampleRate);
+        }
+
+        short[] frame = new short[frameSize];
+        for (int f = 0; f < numFrames; f++) {
+            int byteOffset = f * frameSizeBytes;
+            // Read frame from buffer (little-endian int16)
+            for (int i = 0; i < frameSize; i++) {
+                int lo = buffer.get(byteOffset + i * 2) & 0xFF;
+                int hi = buffer.get(byteOffset + i * 2 + 1);
+                frame[i] = (short) ((hi << 8) | lo);
+            }
+            // Apply rnnoise
+            processAudioFrame(frame);
+            // Write denoised frame back
+            for (int i = 0; i < frameSize; i++) {
+                buffer.put(byteOffset + i * 2,     (byte) (frame[i] & 0xFF));
+                buffer.put(byteOffset + i * 2 + 1, (byte) ((frame[i] >>> 8) & 0xFF));
+            }
+        }
+    }
+
+    private boolean firstBufferLogged = false;
+
     @Override
     public long onBuffer(ByteBuffer buffer,
                          int audioFormat,
@@ -56,12 +140,30 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
                          int sampleRate,
                          int bytesRead,
                          long captureTimeNs) {
-        // If not capturing system audio, do nothing.
+
+        // Log the first call so we can see the exact params WebRTC passes
+        if (!firstBufferLogged) {
+            firstBufferLogged = true;
+            android.util.Log.d(RNNOISE_TAG, ">>> onBuffer: sampleRate=" + sampleRate
+                    + " channelCount=" + channelCount
+                    + " bytesRead=" + bytesRead
+                    + " audioFormat=" + audioFormat);
+            System.out.println(">>> [RustNoiseCancel] onBuffer: sampleRate=" + sampleRate
+                    + " channelCount=" + channelCount + " bytesRead=" + bytesRead);
+        }
+
+        // Apply noise cancellation on raw mic PCM BEFORE any mixing or WebRTC processing
+        // Works for mono (channelCount=1). For stereo we still process interleaved channel 0.
+        if (bytesRead > 0) {
+            applyNoiseCancellation(buffer, bytesRead, sampleRate);
+        }
+
+        // If not capturing system audio, we're done.
         if (!isCapturing || audioRecord == null || !shareScreenAudio) {
             return captureTimeNs;
         }
 
-        // Read system audio into its own array
+        // Read system audio and mix into the (now denoised) mic buffer
         byte[] sysData = new byte[bytesRead];
         int sysRead = audioRecord.read(sysData, 0, bytesRead);
 
