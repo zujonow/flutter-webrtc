@@ -19,7 +19,8 @@ import java.nio.ByteBuffer;
  * mic PCM from WebRTC before encoding occurs.
  *
  * Acts as a pure "frame bus": if an external AudioFrameProcessor is registered,
- * it delegates each 480-sample chunk to the processor for in-place modification.
+ * it delegates each 480-sample chunk to the processor for in-place
+ * modification.
  * flutter_webrtc has no knowledge of what the processor does.
  */
 public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.AudioBufferCallback {
@@ -34,9 +35,9 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
 
     private final android.content.Context context;
     private AudioRecord audioRecord;
-    private boolean isCapturing = false;
+    private volatile boolean isCapturing = false;
     private MediaProjection mediaProjection;
-    private boolean shareScreenAudio;
+    private volatile boolean shareScreenAudio;
     private final JavaAudioDeviceModule audioDeviceModule;
 
     // -----------------------------------------------------------------------
@@ -57,7 +58,7 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
     // -----------------------------------------------------------------------
 
     public AudioPlaybackCaptureController(android.content.Context context,
-                                          JavaAudioDeviceModule audioDeviceModule) {
+            JavaAudioDeviceModule audioDeviceModule) {
         this.context = context;
         this.audioDeviceModule = audioDeviceModule;
     }
@@ -69,11 +70,11 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
 
     @Override
     public long onBuffer(ByteBuffer buffer,
-                         int audioFormat,
-                         int channelCount,
-                         int sampleRate,
-                         int bytesRead,
-                         long captureTimeNs) {
+            int audioFormat,
+            int channelCount,
+            int sampleRate,
+            int bytesRead,
+            long captureTimeNs) {
 
         // Delegate to external processor if registered
         AudioFrameProcessor proc = externalProcessor;
@@ -117,9 +118,9 @@ public class AudioPlaybackCaptureController implements JavaAudioDeviceModule.Aud
      * to the processor in-place, write denoised result back into the buffer.
      */
     private void applyExternalProcessor(AudioFrameProcessor proc,
-                                        ByteBuffer buffer,
-                                        int bytesAvailable,
-                                        int sampleRate) {
+            ByteBuffer buffer,
+            int bytesAvailable,
+            int sampleRate) {
         int frameSize = (sampleRate == 48000) ? FRAME_SIZE : Math.max(1, sampleRate * 10 / 1000);
         int frameSizeBytes = frameSize * BYTES_PER_SAMPLE;
         int numFrames = bytesAvailable / frameSizeBytes;

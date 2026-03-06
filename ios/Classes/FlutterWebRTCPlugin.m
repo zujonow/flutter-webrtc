@@ -281,16 +281,8 @@ bypassVoiceProcessing:(BOOL)bypassVoiceProcessing {
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
-  NSLog(@"[FlutterWebRTC] handleMethodCall: %@", call.method);
-  if ([@"startNoiseSuppression" isEqualToString:call.method]) {
-    _audioManager.noiseCancellationEnabled = YES;
-    NSLog(@"[FlutterWebRTC] startNoiseSuppression");
-    result(nil);
-  } else if ([@"stopNoiseSuppression" isEqualToString:call.method]) {
-    _audioManager.noiseCancellationEnabled = NO;
-    NSLog(@"[FlutterWebRTC] stopNoiseSuppression");
-    result(nil);
-  } else if ([@"initialize" isEqualToString:call.method]) {
+
+  if ([@"initialize" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSDictionary* options = argsMap[@"options"];
       BOOL enableBypassVoiceProcessing = NO;

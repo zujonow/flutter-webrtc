@@ -38,10 +38,12 @@
   if (_externalAudioProcessor) {
     [_capturePostProcessingAdapter removeProcessing:_externalAudioProcessor];
   }
+
   _externalAudioProcessor = processor;
+
   // If currently enabled, register the new processor immediately
-  if (processor && _noiseCancellationEnabled) {
-    [_capturePostProcessingAdapter addProcessing:processor];
+  if (_externalAudioProcessor && _noiseCancellationEnabled) {
+    [_capturePostProcessingAdapter addProcessing:_externalAudioProcessor];
   }
 }
 
