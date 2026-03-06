@@ -41,12 +41,6 @@ android {
         disable 'InvalidPackage'
     }
 
-    externalNativeBuild {
-        cmake {
-            path "src/main/cpp/CMakeLists.txt"
-            version "3.22.1"
-        }
-    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

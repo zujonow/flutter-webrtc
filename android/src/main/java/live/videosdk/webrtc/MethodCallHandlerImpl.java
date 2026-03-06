@@ -134,6 +134,9 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
 
   public AudioPlaybackCaptureController audioPlaybackCaptureController;
 
+  // EventChannel that streams raw mic PCM bytes to Dart for plugin processing
+  private EventChannel micAudioChannel;
+
   private Boolean enableAudio;
 
   MethodCallHandlerImpl(Context context, BinaryMessenger messenger, TextureRegistry textureRegistry) {
