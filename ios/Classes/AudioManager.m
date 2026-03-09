@@ -5,6 +5,8 @@
   RTCDefaultAudioProcessingModule* _audioProcessingModule;
   AudioProcessingAdapter* _capturePostProcessingAdapter;
   AudioProcessingAdapter* _renderPreProcessingAdapter;
+  id<ExternalAudioProcessingDelegate> _externalAudioProcessor;
+  BOOL _noiseCancellationEnabled;
 }
 
 @synthesize capturePostProcessingAdapter = _capturePostProcessingAdapter;
@@ -29,6 +31,35 @@
     _audioProcessingModule.renderPreProcessingDelegate = _renderPreProcessingAdapter;
   }
   return self;
+}
+
+- (void)setExternalAudioProcessor:(nullable id<ExternalAudioProcessingDelegate>)processor {
+  // Remove old processor if one was previously registered
+  if (_externalAudioProcessor) {
+    [_capturePostProcessingAdapter removeProcessing:_externalAudioProcessor];
+  }
+
+  _externalAudioProcessor = processor;
+
+  // If currently enabled, register the new processor immediately
+  if (_externalAudioProcessor && _noiseCancellationEnabled) {
+    [_capturePostProcessingAdapter addProcessing:_externalAudioProcessor];
+  }
+}
+
+- (void)setNoiseCancellationEnabled:(BOOL)noiseCancellationEnabled {
+  _noiseCancellationEnabled = noiseCancellationEnabled;
+  if (_externalAudioProcessor) {
+    if (noiseCancellationEnabled) {
+      [_capturePostProcessingAdapter addProcessing:_externalAudioProcessor];
+    } else {
+      [_capturePostProcessingAdapter removeProcessing:_externalAudioProcessor];
+    }
+  }
+}
+
+- (BOOL)noiseCancellationEnabled {
+  return _noiseCancellationEnabled;
 }
 
 - (void)addLocalAudioRenderer:(nonnull id<RTCAudioRenderer>)renderer {

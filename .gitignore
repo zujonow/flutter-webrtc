@@ -45,6 +45,7 @@ example/ios/Flutter/flutter_export_environment.sh
 /build/
 /android/.gradle/
 /android/build/
+/android/.cxx
 
 android/.classpath
 android/.settings/org.eclipse.buildship.core.prefs

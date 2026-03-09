@@ -226,17 +226,17 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       audioDeviceModuleBuilder.setAudioAttributes(audioAttributes);
     }
     audioPlaybackCaptureController = new AudioPlaybackCaptureController(context, null);
-    
+
     // Set the audio buffer callback through the builder
     audioDeviceModuleBuilder.setAudioBufferCallback(audioPlaybackCaptureController);
-    
+
     // Create ADM with the callback already set
     audioDeviceModule = audioDeviceModuleBuilder.createAudioDeviceModule();
-    
+
     if (!bypassVoiceProcessing && JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()) {
-        audioDeviceModule.setNoiseSuppressorEnabled(true);
+      audioDeviceModule.setNoiseSuppressorEnabled(true);
     }
-    
+
     getUserMediaImpl = new GetUserMediaImpl(this, context, audioPlaybackCaptureController);
     getUserMediaImpl.audioDeviceModule = (JavaAudioDeviceModule) audioDeviceModule;
 
