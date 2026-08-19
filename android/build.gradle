@@ -11,9 +11,7 @@ buildscript {
     }
 }
 
-plugins {
-    id 'com.android.library'
-}
+apply plugin: 'com.android.library'
 
 group = 'live.videosdk.webrtc'
 version = '1.0-SNAPSHOT'
@@ -27,7 +25,10 @@ rootProject.allprojects {
 }
 
 def agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()
-if (agpMajor < 9) {
+def builtInKotlinActive = agpMajor >= 9 &&
+    (!project.hasProperty('android.builtInKotlin') ||
+        Boolean.parseBoolean(project.property('android.builtInKotlin').toString()))
+if (!builtInKotlinActive) {
     apply plugin: 'org.jetbrains.kotlin.android'
 }
 
