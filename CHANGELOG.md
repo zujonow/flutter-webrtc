@@ -1,5 +1,9 @@
 # Changelog
 
+[0.0.19] - 2026.08.19
+- Android builds no longer show the `Applying Kotlin Gradle plugin via classpath resolution is deprecated` warning.
+- Android builds now require Java 17. Most Flutter apps already use it; if yours still builds with Java 11, update `compileOptions` in your `android/app/build.gradle`.
+
 [0.0.18] - 2026.08.18
 - Raised the Android `compileSdkVersion` from 33 to 36 so the plugin builds in apps that use a modern compile SDK (required for coexistence with packages such as `permission_handler` 13, which needs app `compileSdk` 37).
 - Updated the Android build toolchain: AGP 8.7.3 → 8.9.1 and Kotlin 1.7.10 → 1.9.24, clearing Flutter's minimum-Kotlin-version warning during app builds.
