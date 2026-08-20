@@ -1,5 +1,9 @@
 # Changelog
 
+[0.0.19] - 2026.08.20
+- Prepared the Android build for Android Gradle Plugin 9: the plugin now skips applying the Kotlin Gradle plugin when AGP compiles Kotlin itself, so it keeps building on both current and upcoming AGP versions. No change is needed in your app.
+- Raised the plugin's own Java and Kotlin compile target from 8 to 17, clearing javac's `source value 8 is obsolete` warning during Android builds. Your app's own `compileOptions` are unaffected.
+
 [0.0.18] - 2026.08.18
 - Raised the Android `compileSdkVersion` from 33 to 36 so the plugin builds in apps that use a modern compile SDK (required for coexistence with packages such as `permission_handler` 13, which needs app `compileSdk` 37).
 - Updated the Android build toolchain: AGP 8.7.3 → 8.9.1 and Kotlin 1.7.10 → 1.9.24, clearing Flutter's minimum-Kotlin-version warning during app builds.
