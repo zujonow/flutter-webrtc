@@ -1,6 +1,6 @@
 # Changelog
 
-[0.0.19] - 2026.08.19
+[0.0.19] - 2026.08.20
 - Prepared the Android build for Android Gradle Plugin 9: the plugin now skips applying the Kotlin Gradle plugin when AGP compiles Kotlin itself, so it keeps building on both current and upcoming AGP versions. No change is needed in your app.
 - Raised the plugin's own Java and Kotlin compile target from 8 to 17, clearing javac's `source value 8 is obsolete` warning during Android builds. Your app's own `compileOptions` are unaffected.
 
